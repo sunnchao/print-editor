@@ -1,0 +1,251 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.material-panel {
+  width: 240px;
+  height: 100%;
+  border-right: 1px solid #e8e8e8;
+  background: #fafafa;
+  overflow-y: auto;
+}
+
+.canvas-container {
+  flex: 1;
+  height: 100%;
+  background: #f0f2f5;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+}
+
+.property-panel {
+  width: 300px;
+  height: 100%;
+  border-left: 1px solid #e8e8e8;
+  background: #fff;
+  overflow-y: auto;
+}
+
+.panel-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fff;
+}
+
+.panel-content {
+  padding: 12px;
+}
+
+.material-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  margin: 4px 8px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  cursor: grab;
+  transition: all 0.2s;
+}
+
+.material-item:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+}
+
+.material-item:active {
+  cursor: grabbing;
+}
+
+.material-item .anticon {
+  font-size: 18px;
+  margin-right: 8px;
+  color: #1890ff;
+}
+
+.canvas-paper {
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  position: relative;
+  min-height: 500px;
+}
+
+.widget-wrapper {
+  position: absolute;
+  cursor: move;
+  user-select: none;
+}
+
+.widget-wrapper.selected {
+  outline: 2px solid #1890ff;
+}
+
+.widget-wrapper:hover {
+  outline: 1px dashed #1890ff;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #1890ff;
+  border: 1px solid #fff;
+}
+
+.resize-handle.se {
+  right: -4px;
+  bottom: -4px;
+  cursor: se-resize;
+}
+
+.resize-handle.sw {
+  left: -4px;
+  bottom: -4px;
+  cursor: sw-resize;
+}
+
+.resize-handle.ne {
+  right: -4px;
+  top: -4px;
+  cursor: ne-resize;
+}
+
+.resize-handle.nw {
+  left: -4px;
+  top: -4px;
+  cursor: nw-resize;
+}
+
+.context-menu {
+  position: fixed;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 3px 6px -4px rgba(0,0,0,.12), 0 6px 16px 0 rgba(0,0,0,.08);
+  padding: 4px 0;
+  z-index: 1000;
+}
+
+.context-menu-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.context-menu-item:hover {
+  background: #f5f5f5;
+}
+
+.context-menu-item.disabled {
+  color: #bfbfbf;
+  cursor: not-allowed;
+}
+
+.context-menu-item.disabled:hover {
+  background: transparent;
+}
+
+.context-menu-item.danger {
+  color: #ff4d4f;
+}
+
+.context-menu-item.danger.disabled {
+  color: #ffccc7;
+}
+
+.context-menu-hint {
+  font-size: 12px;
+  color: #8c8c8c;
+  padding: 4px 16px 8px;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: #e8e8e8;
+  margin: 4px 0;
+}
+
+/* 打印样式 - 只打印模板内容 */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .editor-container {
+    display: block !important;
+  }
+  
+  .material-panel,
+  .property-panel,
+  .ruler,
+  .ruler-corner,
+  .canvas-wrapper > .ruler-horizontal,
+  .canvas-wrapper > .ruler-vertical,
+  .context-menu {
+    display: none !important;
+  }
+  
+  .canvas-container {
+    padding: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+  
+  .canvas-wrapper {
+    display: block !important;
+  }
+  
+  .canvas-area {
+    padding: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+  
+  .canvas-paper {
+    box-shadow: none !important;
+    transform: none !important;
+    margin: 0 !important;
+    page-break-inside: avoid;
+  }
+  
+  .widget-wrapper {
+    outline: none !important;
+  }
+  
+  .widget-wrapper:hover {
+    outline: none !important;
+  }
+  
+  .widget-wrapper.selected {
+    outline: none !important;
+  }
+  
+  .resize-handle {
+    display: none !important;
+  }
+}
