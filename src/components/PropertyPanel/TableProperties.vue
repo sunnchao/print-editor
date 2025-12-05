@@ -17,6 +17,24 @@ const borderStyleOptions = [
   { label: '点线', value: 'dotted' }
 ]
 
+const fontFamilyOptions = [
+  { label: 'Arial', value: 'Arial' },
+  { label: '宋体', value: '宋体' },
+  { label: '微软雅黑', value: '微软雅黑' },
+  { label: 'Helvetica', value: 'Helvetica' }
+]
+
+const fontWeightOptions = [
+  { label: '正常', value: 'normal' },
+  { label: '粗体', value: 'bold' }
+]
+
+const textAlignOptions = [
+  { label: '左对齐', value: 'left' },
+  { label: '居中', value: 'center' },
+  { label: '右对齐', value: 'right' }
+]
+
 const tableMode = computed(() => props.widget.tableMode ?? 'legacy')
 const isSimpleMode = computed(() => tableMode.value === 'simple')
 const isComplexMode = computed(() => tableMode.value === 'complex')
@@ -323,6 +341,81 @@ function handleColumnBindingChange(value: string | null) {
   }
   editorStore.updateWidget(props.widget.id, { columnBindings: bindings })
 }
+
+function updateCellStyle(styleUpdates: Partial<TableCell>) {
+  if (!tableSelection.value) return
+  const { startRow, endRow, startCol, endCol } = tableSelection.value
+  const newCells = JSON.parse(JSON.stringify(props.widget.cells))
+
+  // 更新选中区域的所有单元格样式
+  for (let row = startRow; row <= endRow; row++) {
+    for (let col = startCol; col <= endCol; col++) {
+      if (newCells[row] && newCells[row][col]) {
+        newCells[row][col] = {
+          ...newCells[row][col],
+          ...styleUpdates
+        }
+      }
+    }
+  }
+
+  editorStore.updateWidget(props.widget.id, { cells: newCells })
+}
+
+// 计算选中行/列的当前行高/列宽（像素）
+const selectedRowHeight = computed(() => {
+  if (!tableSelection.value) return null
+  const rowIndex = tableSelection.value.startRow
+  const rowHeights = props.widget.rowHeights || []
+  const fraction = rowHeights[rowIndex] || (1 / props.widget.rows)
+  return Math.round(props.widget.height * fraction)
+})
+
+const selectedColWidth = computed(() => {
+  if (!tableSelection.value) return null
+  const colIndex = tableSelection.value.startCol
+  const columnWidths = props.widget.columnWidths || []
+  const fraction = columnWidths[colIndex] || (1 / props.widget.cols)
+  return Math.round(props.widget.width * fraction)
+})
+
+function updateRowHeight(heightPx: number) {
+  if (!tableSelection.value) return
+  const rowIndex = tableSelection.value.startRow
+  const currentRowHeights = normalizeFractions(props.widget.rowHeights || [], props.widget.rows)
+
+  // 计算新的比例
+  const newFraction = heightPx / props.widget.height
+  const oldFraction = currentRowHeights[rowIndex]
+  const diff = newFraction - oldFraction
+
+  // 按比例分配差值到其他行
+  const newRowHeights = currentRowHeights.map((frac, idx) => {
+    if (idx === rowIndex) return newFraction
+    return frac - (diff / (props.widget.rows - 1))
+  })
+
+  editorStore.updateWidget(props.widget.id, { rowHeights: normalizeFractions(newRowHeights, props.widget.rows) })
+}
+
+function updateColWidth(widthPx: number) {
+  if (!tableSelection.value) return
+  const colIndex = tableSelection.value.startCol
+  const currentColWidths = normalizeFractions(props.widget.columnWidths || [], props.widget.cols)
+
+  // 计算新的比例
+  const newFraction = widthPx / props.widget.width
+  const oldFraction = currentColWidths[colIndex]
+  const diff = newFraction - oldFraction
+
+  // 按比例分配差值到其他列
+  const newColWidths = currentColWidths.map((frac, idx) => {
+    if (idx === colIndex) return newFraction
+    return frac - (diff / (props.widget.cols - 1))
+  })
+
+  editorStore.updateWidget(props.widget.id, { columnWidths: normalizeFractions(newColWidths, props.widget.cols) })
+}
 </script>
 
 <template>
@@ -501,7 +594,8 @@ function handleColumnBindingChange(value: string | null) {
               @change="(e: Event) => handleCellContentChange((e.target as HTMLTextAreaElement).value)"
             />
           </a-form-item>
-          <a-form-item label="绑定数据">
+          <!-- 复杂表格不显示单元格级别的数据绑定 -->
+          <a-form-item v-if="!isComplexMode" label="绑定数据">
             <a-select
               :value="activeCell.dataSource"
               allow-clear
@@ -520,6 +614,97 @@ function handleColumnBindingChange(value: string | null) {
       </template>
     </template>
     <p v-else class="table-cell-empty">请选择一个单元格以编辑内容</p>
+  </div>
+
+  <a-divider orientation="left" style="font-size: 12px">单元格样式</a-divider>
+  <div class="table-cell-panel">
+    <template v-if="tableSelection">
+      <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
+        <a-form-item label="字体大小">
+          <a-input-number
+            :value="activeCell?.fontSize || 14"
+            @change="v => updateCellStyle({ fontSize: v })"
+            :min="8"
+            :max="72"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="字体">
+          <a-select
+            :value="activeCell?.fontFamily || 'Arial'"
+            @change="v => updateCellStyle({ fontFamily: v })"
+          >
+            <a-select-option v-for="option in fontFamilyOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="字重">
+          <a-select
+            :value="activeCell?.fontWeight || 'normal'"
+            @change="v => updateCellStyle({ fontWeight: v })"
+          >
+            <a-select-option v-for="option in fontWeightOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="文字颜色">
+          <a-input
+            type="color"
+            :value="activeCell?.color || '#000000'"
+            @change="e => updateCellStyle({ color: e.target.value })"
+          />
+        </a-form-item>
+        <a-form-item label="对齐方式">
+          <a-select
+            :value="activeCell?.textAlign || 'left'"
+            @change="v => updateCellStyle({ textAlign: v })"
+          >
+            <a-select-option v-for="option in textAlignOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="背景颜色">
+          <a-input
+            type="color"
+            :value="activeCell?.backgroundColor || '#ffffff'"
+            @change="e => updateCellStyle({ backgroundColor: e.target.value })"
+          />
+        </a-form-item>
+      </a-form>
+    </template>
+    <p v-else class="table-cell-empty">请选择单元格以编辑样式</p>
+  </div>
+
+  <a-divider orientation="left" style="font-size: 12px">行高和列宽</a-divider>
+  <div class="table-cell-panel">
+    <template v-if="tableSelection">
+      <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
+        <a-form-item label="行高 (px)">
+          <a-input-number
+            :value="selectedRowHeight"
+            @change="v => updateRowHeight(v)"
+            :min="10"
+            :max="500"
+            style="width: 100%"
+          />
+          <small class="form-tip">调整第 {{ tableSelection.startRow + 1 }} 行的高度</small>
+        </a-form-item>
+        <a-form-item label="列宽 (px)">
+          <a-input-number
+            :value="selectedColWidth"
+            @change="v => updateColWidth(v)"
+            :min="10"
+            :max="500"
+            style="width: 100%"
+          />
+          <small class="form-tip">调整第 {{ tableSelection.startCol + 1 }} 列的宽度</small>
+        </a-form-item>
+      </a-form>
+    </template>
+    <p v-else class="table-cell-empty">请选择单元格以调整行高列宽</p>
   </div>
 
 </template>

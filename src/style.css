@@ -189,62 +189,71 @@ html, body, #app {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  
+
   body {
     margin: 0;
     padding: 0;
   }
-  
-  .editor-container {
-    display: block !important;
-  }
-  
-  .material-panel,
-  .property-panel,
-  .ruler,
-  .ruler-corner,
-  .canvas-wrapper > .ruler-horizontal,
-  .canvas-wrapper > .ruler-vertical,
+
+  /* 编辑模式打印样式 */
+  .editor-page .editor-toolbar,
+  .editor-page .material-panel,
+  .editor-page .property-panel,
+  .editor-page .ruler,
+  .editor-page .ruler-corner,
+  .editor-page .canvas-wrapper > .ruler-horizontal,
+  .editor-page .canvas-wrapper > .ruler-vertical,
+  .editor-page .zoom-controls,
   .context-menu {
     display: none !important;
   }
-  
-  .canvas-container {
+
+  .editor-page .editor-main {
+    display: block !important;
+  }
+
+  .editor-page .canvas-container {
     padding: 0 !important;
     background: transparent !important;
     overflow: visible !important;
     display: block !important;
   }
-  
-  .canvas-wrapper {
+
+  .editor-page .canvas-wrapper {
     display: block !important;
   }
-  
-  .canvas-area {
+
+  .editor-page .canvas-area {
     padding: 0 !important;
     background: transparent !important;
     overflow: visible !important;
   }
-  
-  .canvas-paper {
+
+  .editor-page .canvas-paper {
     box-shadow: none !important;
     transform: none !important;
     margin: 0 !important;
+    position: static !important;
     page-break-inside: avoid;
   }
-  
+
+  .editor-page .canvas-content {
+    width: auto !important;
+    height: auto !important;
+  }
+
   .widget-wrapper {
     outline: none !important;
   }
-  
+
   .widget-wrapper:hover {
     outline: none !important;
   }
-  
+
   .widget-wrapper.selected {
     outline: none !important;
   }
-  
+
   .resize-handle {
     display: none !important;
   }

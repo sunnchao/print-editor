@@ -19,6 +19,8 @@ const dataSourceStore = useDataSourceStore()
 
 const activeTab = ref('properties')
 
+const isCustomPaper = computed(() => editorStore.paperSize.name === '自定义')
+
 const propertyComponent = computed(() => {
   if (!editorStore.selectedWidget) return null
   const components: Record<string, any> = {
@@ -32,6 +34,31 @@ const propertyComponent = computed(() => {
   }
   return components[editorStore.selectedWidget.type]
 })
+
+function handlePaperSizeChange(name: string) {
+  const paperSize = PAPER_SIZES.find((p: any) => p.name === name)
+  if (paperSize) {
+    editorStore.setPaperSize({ ...paperSize })
+  }
+}
+
+function handleCustomWidthChange(width: number | null) {
+  if (width === null) return
+  editorStore.setPaperSize({
+    name: '自定义',
+    width,
+    height: editorStore.paperSize.height
+  })
+}
+
+function handleCustomHeightChange(height: number | null) {
+  if (height === null) return
+  editorStore.setPaperSize({
+    name: '自定义',
+    width: editorStore.paperSize.width,
+    height
+  })
+}
 
 async function handleExcelUpload(info: UploadChangeParam) {
   // Ant Design Vue Upload 组件会多次触发 change 事件，需要检查状态
@@ -84,6 +111,26 @@ function importTemplate(info: UploadChangeParam) {
 }
 
 function print() {
+  // 在打印前动态设置纸张大小
+  const { width, height } = editorStore.paperSize
+
+  // 移除旧的打印样式（如果存在）
+  const oldStyle = document.getElementById('dynamic-print-style')
+  if (oldStyle) {
+    oldStyle.remove()
+  }
+
+  // 创建新的 style 元素
+  const style = document.createElement('style')
+  style.id = 'dynamic-print-style'
+  style.textContent = `
+    @page {
+      size: ${width}mm ${height}mm;
+      margin: 0;
+    }
+  `
+  document.head.appendChild(style)
+
   window.print()
 }
 </script>
@@ -189,14 +236,35 @@ function print() {
             <a-form-item label="纸张大小">
               <a-select
                 :value="editorStore.paperSize.name"
-                @change="(name: string) => editorStore.setPaperSize(PAPER_SIZES.find(p => p.name === name)!)"
+                @change="handlePaperSizeChange"
               >
                 <a-select-option v-for="size in PAPER_SIZES" :key="size.name" :value="size.name">
                   {{ size.name }} ({{ size.width }}x{{ size.height }}mm)
                 </a-select-option>
               </a-select>
             </a-form-item>
-            
+
+            <template v-if="isCustomPaper">
+              <a-form-item label="宽度 (mm)">
+                <a-input-number
+                  :value="editorStore.paperSize.width"
+                  @change="handleCustomWidthChange"
+                  :min="50"
+                  :max="1000"
+                  style="width: 100%"
+                />
+              </a-form-item>
+              <a-form-item label="高度 (mm)">
+                <a-input-number
+                  :value="editorStore.paperSize.height"
+                  @change="handleCustomHeightChange"
+                  :min="50"
+                  :max="1000"
+                  style="width: 100%"
+                />
+              </a-form-item>
+            </template>
+
             <a-form-item label="缩放">
               <a-slider
                 :value="editorStore.scale * 100"

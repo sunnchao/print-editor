@@ -20,6 +20,7 @@ export interface TextWidget extends WidgetBase {
   color: string
   textAlign: 'left' | 'center' | 'right'
   dataSource?: string // Excel 列绑定
+  dataRowIndex?: number | 'all' // 数据行选择：'all' 表示所有行，数字表示具体行索引
 }
 
 export interface ImageWidget extends WidgetBase {
@@ -33,6 +34,13 @@ export interface TableCell {
   rowSpan?: number
   colSpan?: number
   dataSource?: string
+  // 单元格文本样式
+  fontSize?: number
+  fontFamily?: string
+  fontWeight?: string
+  color?: string
+  textAlign?: 'left' | 'center' | 'right'
+  backgroundColor?: string
 }
 
 export interface TableWidget extends WidgetBase {
@@ -63,12 +71,14 @@ export interface BarcodeWidget extends WidgetBase {
   value: string
   format: 'CODE128' | 'CODE39' | 'EAN13' | 'EAN8'
   dataSource?: string
+  dataRowIndex?: number | 'all' // 数据行选择：'all' 表示所有行，数字表示具体行索引
 }
 
 export interface QRCodeWidget extends WidgetBase {
   type: 'qrcode'
   value: string
   dataSource?: string
+  dataRowIndex?: number | 'all' // 数据行选择：'all' 表示所有行，数字表示具体行索引
 }
 
 export interface LineWidget extends WidgetBase {
@@ -114,10 +124,19 @@ export interface PaperSize {
 }
 
 export const PAPER_SIZES: PaperSize[] = [
+  // A 系列
+  { name: 'A3', width: 297, height: 420 },
   { name: 'A4', width: 210, height: 297 },
   { name: 'A5', width: 148, height: 210 },
   { name: 'A6', width: 105, height: 148 },
-  { name: '自定义', width: 200, height: 300 }
+  // B 系列
+  { name: 'B4', width: 250, height: 353 },
+  { name: 'B5', width: 176, height: 250 },
+  { name: 'B6', width: 125, height: 176 },
+  // 其他常用尺寸
+  { name: 'Letter', width: 216, height: 279 },
+  { name: 'Legal', width: 216, height: 356 },
+  { name: '自定义', width: 210, height: 297 }
 ]
 
 export interface Template {

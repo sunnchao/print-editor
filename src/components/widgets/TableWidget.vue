@@ -307,8 +307,14 @@ function getCellDisplayValue(renderRowIndex: number, col: number, cell: any) {
   if (!cell) return ""
   const actualRowIndex = getActualRowIndex(renderRowIndex)
   const isBodyRow = actualRowIndex >= headerRowCount.value
+  const isHeaderRow = !isBodyRow
   const bindingKey = getPreferredBinding(col, cell)
+
   if (isPreview.value) {
+    // 预览模式：表头显示原始内容，数据区显示绑定的值
+    if (isHeaderRow) {
+      return cell.content
+    }
     if (!bindingKey) {
       return cell.content
     }
@@ -322,13 +328,35 @@ function getCellDisplayValue(renderRowIndex: number, col: number, cell: any) {
     }
     return getClampedColumnValue(bindingKey, 0)
   }
-  if (isAutoFillTable.value && isBodyRow) {
+
+  // 编辑模式
+  if (isComplexTable.value && isBodyRow && bindingKey) {
     return "自动填充"
   }
-  if (bindingKey) {
-    return `[${bindingKey}]`
+  if (bindingKey && !isComplexTable.value) {
+    return null
   }
   return cell.content
+}
+
+function getCellBindingKey(renderRowIndex: number, col: number, cell: any) {
+  if (!cell) return null
+  const actualRowIndex = getActualRowIndex(renderRowIndex)
+  const isBodyRow = actualRowIndex >= headerRowCount.value
+  const bindingKey = getPreferredBinding(col, cell)
+
+  // 编辑模式下显示绑定标签
+  if (!isPreview.value && bindingKey) {
+    // 复杂表格：只在数据区显示绑定标签
+    if (isComplexTable.value && isBodyRow) {
+      return bindingKey
+    }
+    // 非复杂表格：非自动填充的单元格显示绑定标签
+    if (!isComplexTable.value && !(isAutoFillTable.value && isBodyRow)) {
+      return bindingKey
+    }
+  }
+  return null
 }
 
 const tableStyle = computed(() => ({
@@ -344,15 +372,36 @@ const cellStyle = computed(() => (renderRowIndex: number, colIndex: number) => {
   const selected = !isPreview.value && isSelected.value(actualRowIndex, colIndex)
   const isHeaderRow = actualRowIndex < headerRowCount.value
   const border = cellBorder.value
-  return {
+
+  // 获取单元格数据
+  const cell = props.widget.cells[actualRowIndex]?.[colIndex]
+
+  // 基础样式
+  const baseStyle: any = {
     border: `${border.width}px ${border.style} ${border.color}`,
     padding: '4px 8px',
-    fontSize: '12px',
-    backgroundColor: selected ? '#e6f7ff' : (isHeaderRow ? '#f5f5f5' : 'transparent'),
-    fontWeight: isHeaderRow ? 'bold' : 'normal',
     outline: selected ? '1px solid #1890ff' : 'none',
     cursor: 'cell'
   }
+
+  // 应用单元格自定义样式
+  if (cell) {
+    baseStyle.fontSize = cell.fontSize ? `${cell.fontSize}px` : '12px'
+    baseStyle.fontFamily = cell.fontFamily || 'Arial'
+    baseStyle.fontWeight = cell.fontWeight || (isHeaderRow ? 'bold' : 'normal')
+    baseStyle.color = cell.color || '#000000'
+    baseStyle.textAlign = cell.textAlign || 'left'
+    baseStyle.backgroundColor = selected
+      ? '#e6f7ff'
+      : (cell.backgroundColor || (isHeaderRow ? '#f5f5f5' : 'transparent'))
+  } else {
+    // 默认样式
+    baseStyle.fontSize = '12px'
+    baseStyle.fontWeight = isHeaderRow ? 'bold' : 'normal'
+    baseStyle.backgroundColor = selected ? '#e6f7ff' : (isHeaderRow ? '#f5f5f5' : 'transparent')
+  }
+
+  return baseStyle
 })
 
 function onMouseDown(event: MouseEvent, renderRow: number, col: number) {
@@ -625,12 +674,13 @@ function shouldRenderCell(renderRow: number, col: number): boolean {
     <!-- 列头 (用于选择列) -->
     <div class="col-headers" v-if="!isPreview && editorStore.selectedWidgetId === widget.id">
       <div
-        v-for="col in widget.cols"
+        v-for="(width, col) in normalizedColumnWidths"
         :key="col"
         class="col-header"
-        @mousedown.stop="onColHeaderMouseDown($event, col - 1)"
-        @mouseenter="onColHeaderMouseEnter(col - 1)"
-        @contextmenu="onColHeaderContextMenu(col - 1)"
+        :style="{ width: `${width * 100}%` }"
+        @mousedown.stop="onColHeaderMouseDown($event, col)"
+        @mouseenter="onColHeaderMouseEnter(col)"
+        @contextmenu="onColHeaderContextMenu(col)"
       ></div>
     </div>
     
@@ -638,12 +688,13 @@ function shouldRenderCell(renderRow: number, col: number): boolean {
       <!-- 行头 (用于选择行) -->
       <div class="row-headers" v-if="!isPreview && editorStore.selectedWidgetId === widget.id">
         <div
-        v-for="row in widget.rows"
+        v-for="(height, row) in normalizedRowHeights"
         :key="row"
         class="row-header"
-        @mousedown.stop="onRowHeaderMouseDown($event, row - 1)"
-        @mouseenter="onRowHeaderMouseEnter(row - 1)"
-        @contextmenu="onRowHeaderContextMenu(row - 1)"
+        :style="{ height: `${height * 100}%` }"
+        @mousedown.stop="onRowHeaderMouseDown($event, row)"
+        @mouseenter="onRowHeaderMouseEnter(row)"
+        @contextmenu="onRowHeaderContextMenu(row)"
       ></div>
     </div>
       <div class="table-content">
@@ -673,6 +724,13 @@ function shouldRenderCell(renderRow: number, col: number): boolean {
                   @contextmenu="isPreview ? null : onCellContextMenu(rowIndex, colIndex)"
                 >
                   <span
+                    v-if="getCellBindingKey(rowIndex, colIndex, cell)"
+                    class="cell-binding-tag"
+                  >
+                    [绑定:{{ getCellBindingKey(rowIndex, colIndex, cell) }}]
+                  </span>
+                  <span
+                    v-else
                     class="cell-text"
                     :class="{ 'cell-text--editing': isEditingCell(rowIndex, colIndex) }"
                   >
@@ -822,7 +880,6 @@ td {
 }
 
 .col-header {
-  flex: 1;
   background: #e6f7ff;
   border: 1px solid #91d5ff;
   cursor: pointer;
@@ -844,7 +901,6 @@ td {
 }
 
 .row-header {
-  flex: 1;
   background: #e6f7ff;
   border: 1px solid #91d5ff;
   cursor: pointer;
@@ -852,6 +908,17 @@ td {
 
 .row-header:hover {
   background: #1890ff;
+}
+
+.cell-binding-tag {
+  display: inline-block;
+  padding: 0 4px;
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 2px;
+  color: #1890ff;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .col-resize-handles,

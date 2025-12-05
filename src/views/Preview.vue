@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ArrowLeftOutlined, PrinterOutlined } from '@ant-design/icons-vue'
 import { useTemplateStore } from '@/stores/template'
+import { useDataSourceStore } from '@/stores/datasource'
 import type { Template, Widget } from '@/types'
 import TextWidgetComp from '@/components/widgets/TextWidget.vue'
 import TableWidgetComp from '@/components/widgets/TableWidget.vue'
@@ -16,6 +17,7 @@ import QRCodeWidgetComp from '@/components/widgets/QRCodeWidget.vue'
 const route = useRoute()
 const router = useRouter()
 const templateStore = useTemplateStore()
+const dataSourceStore = useDataSourceStore()
 
 const template = ref<Template | null>(null)
 const isLoading = ref(true)
@@ -33,6 +35,7 @@ const paperStyle = computed(() => {
 })
 
 onMounted(async () => {
+  await dataSourceStore.initFromDB()
   const id = route.params.id as string
   if (id) {
     const t = await templateStore.loadTemplate(id)
@@ -75,6 +78,28 @@ function goBack() {
 }
 
 function handlePrint() {
+  // 在打印前动态设置纸张大小
+  if (template.value) {
+    const { width, height } = template.value.paperSize
+
+    // 移除旧的打印样式（如果存在）
+    const oldStyle = document.getElementById('dynamic-print-style')
+    if (oldStyle) {
+      oldStyle.remove()
+    }
+
+    // 创建新的 style 元素
+    const style = document.createElement('style')
+    style.id = 'dynamic-print-style'
+    style.textContent = `
+      @page {
+        size: ${width}mm ${height}mm;
+        margin: 0;
+      }
+    `
+    document.head.appendChild(style)
+  }
+
   window.print()
 }
 </script>
@@ -113,6 +138,16 @@ function handlePrint() {
 .preview-page {
   min-height: 100vh;
   background: #f0f2f5;
+  overflow-y: auto;
+}
+
+/* 覆盖全局 overflow: hidden，允许预览页面滚动 */
+:global(html),
+:global(body),
+:global(#app) {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 100vh;
 }
 
 .preview-toolbar {
@@ -122,6 +157,9 @@ function handlePrint() {
   padding: 12px 24px;
   background: #fff;
   border-bottom: 1px solid #e8e8e8;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .template-title {
@@ -131,31 +169,40 @@ function handlePrint() {
 
 .preview-container {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   padding: 40px 20px;
+  min-height: calc(100vh - 49px);
 }
 
 .preview-paper {
   background: #fff;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   position: relative;
+  margin-bottom: 20px;
 }
 
 @media print {
   .no-print {
     display: none !important;
   }
-  
+
   .preview-page {
     background: transparent;
   }
-  
+
   .preview-container {
     padding: 0;
   }
-  
+
   .preview-paper {
     box-shadow: none;
+    margin: 0;
+    page-break-after: always;
+  }
+
+  .preview-paper:last-child {
+    page-break-after: auto;
   }
 }
 </style>

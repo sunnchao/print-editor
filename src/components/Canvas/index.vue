@@ -14,19 +14,29 @@ const contextMenuPosition = ref({ x: 0, y: 0 })
 const contextMenuWidgetId = ref<string | null>(null)
 
 const MM_TO_PX = 3.78
+const PAPER_OFFSET = 40 // 纸张距离0刻度线的偏移量（像素）
+const RULER_EXTENSION = 200 // 刻度尺延伸长度（像素）
 
 const paperWidth = computed(() => editorStore.paperSize.width * MM_TO_PX)
 const paperHeight = computed(() => editorStore.paperSize.height * MM_TO_PX)
 
+// 刻度尺的总长度（纸张 + 左侧偏移 + 右侧延伸）
+const rulerWidth = computed(() => paperWidth.value + PAPER_OFFSET + RULER_EXTENSION)
+const rulerHeight = computed(() => paperHeight.value + PAPER_OFFSET + RULER_EXTENSION)
+
 const paperStyle = computed(() => ({
   width: `${paperWidth.value}px`,
   height: `${paperHeight.value}px`,
-  transform: `scale(${editorStore.scale})`
+  transform: `scale(${editorStore.scale})`,
+  position: 'absolute' as const,
+  left: `${PAPER_OFFSET}px`,
+  top: `${PAPER_OFFSET}px`
 }))
 
 const horizontalRulerMarks = computed(() => {
   const marks: { position: number; label: string; isMajor: boolean }[] = []
-  const widthMm = editorStore.paperSize.width
+  // 刻度尺总长度转换为毫米
+  const totalWidthMm = rulerWidth.value / MM_TO_PX
 
   // 根据缩放级别动态调整刻度间隔
   let minorInterval = 5
@@ -43,7 +53,8 @@ const horizontalRulerMarks = computed(() => {
     majorInterval = 50
   }
 
-  for (let mm = 0; mm <= widthMm; mm += minorInterval) {
+  // 从0开始绘制刻度，延伸到总长度
+  for (let mm = 0; mm <= totalWidthMm; mm += minorInterval) {
     marks.push({
       position: mm * MM_TO_PX * editorStore.scale,
       label: mm % majorInterval === 0 ? String(mm) : '',
@@ -55,7 +66,8 @@ const horizontalRulerMarks = computed(() => {
 
 const verticalRulerMarks = computed(() => {
   const marks: { position: number; label: string; isMajor: boolean }[] = []
-  const heightMm = editorStore.paperSize.height
+  // 刻度尺总长度转换为毫米
+  const totalHeightMm = rulerHeight.value / MM_TO_PX
 
   // 根据缩放级别动态调整刻度间隔
   let minorInterval = 5
@@ -72,7 +84,8 @@ const verticalRulerMarks = computed(() => {
     majorInterval = 50
   }
 
-  for (let mm = 0; mm <= heightMm; mm += minorInterval) {
+  // 从0开始绘制刻度，延伸到总长度
+  for (let mm = 0; mm <= totalHeightMm; mm += minorInterval) {
     marks.push({
       position: mm * MM_TO_PX * editorStore.scale,
       label: mm % majorInterval === 0 ? String(mm) : '',
@@ -86,14 +99,15 @@ function onDrop(e: DragEvent) {
   e.preventDefault()
   const widgetType = e.dataTransfer?.getData("widgetType")
   if (!widgetType || !canvasRef.value) return
-  
+
   const rect = canvasRef.value.getBoundingClientRect()
+  // 考虑纸张的偏移量和缩放
   const x = (e.clientX - rect.left) / editorStore.scale
   const y = (e.clientY - rect.top) / editorStore.scale
-  
+
   const tableMode = e.dataTransfer?.getData("tableMode")
   const normalizedMode = tableMode === "simple" || tableMode === "complex" ? tableMode : undefined
-  
+
   createWidget(widgetType, x, y, { tableMode: normalizedMode })
 }
 
@@ -315,7 +329,7 @@ onUnmounted(() => {
       <div class="ruler-corner"></div>
 
       <!-- 水平刻度尺 -->
-      <div class="ruler ruler-horizontal" :style="{ width: `${paperWidth * editorStore.scale}px` }">
+      <div class="ruler ruler-horizontal" :style="{ width: `${rulerWidth * editorStore.scale}px` }">
         <div
           v-for="(mark, index) in horizontalRulerMarks"
           :key="index"
@@ -328,7 +342,7 @@ onUnmounted(() => {
       </div>
 
       <!-- 垂直刻度尺 -->
-      <div class="ruler ruler-vertical" :style="{ height: `${paperHeight * editorStore.scale}px` }">
+      <div class="ruler ruler-vertical" :style="{ height: `${rulerHeight * editorStore.scale}px` }">
         <div
           v-for="(mark, index) in verticalRulerMarks"
           :key="index"
@@ -342,13 +356,18 @@ onUnmounted(() => {
 
       <!-- 画布纸张 -->
       <div class="canvas-area" @wheel.passive="handleWheel">
-        <div
-          ref="canvasRef"
-          class="canvas-paper"
-          :style="paperStyle"
-          @drop="onDrop"
-          @dragover="onDragOver"
-        >
+        <div class="canvas-content" :style="{
+          width: `${rulerWidth * editorStore.scale}px`,
+          height: `${rulerHeight * editorStore.scale}px`,
+          position: 'relative'
+        }">
+          <div
+            ref="canvasRef"
+            class="canvas-paper"
+            :style="paperStyle"
+            @drop="onDrop"
+            @dragover="onDragOver"
+          >
           <WidgetWrapper
             v-for="widget in editorStore.widgets"
             :key="widget.id"
@@ -369,6 +388,7 @@ onUnmounted(() => {
               height: line.type === 'horizontal' ? '1px' : '100%'
             }"
           ></div>
+          </div>
         </div>
       </div>
     </div>
@@ -516,13 +536,17 @@ onUnmounted(() => {
   background: #a8a8a8;
 }
 
+.canvas-content {
+  position: relative;
+  min-width: max-content;
+  min-height: max-content;
+}
+
 .canvas-paper {
   background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  position: relative;
+  position: absolute;
   transform-origin: top left;
-  margin: auto;
-  min-width: max-content;
 }
 
 .snap-line {

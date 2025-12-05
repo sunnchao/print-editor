@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, provide } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
@@ -29,6 +29,15 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
 provide('renderMode', 'editor')
 
+// 键盘快捷键处理
+function handleKeydown(event: KeyboardEvent) {
+  // Ctrl+S 或 Cmd+S (Mac) 保存
+  if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+    event.preventDefault()
+    handleSave()
+  }
+}
+
 onMounted(async () => {
   const id = route.params.id as string
   if (id) {
@@ -46,6 +55,14 @@ onMounted(async () => {
     // 新建模板
     editorStore.clearWidgets()
   }
+
+  // 添加键盘事件监听
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onBeforeUnmount(() => {
+  // 移除键盘事件监听
+  window.removeEventListener('keydown', handleKeydown)
 })
 
 watch(() => route.params.id, async (newId) => {
@@ -67,11 +84,12 @@ function goBack() {
 async function handleSave() {
   try {
     isSaving.value = true
-    
+
     if (templateId.value) {
       // 更新现有模板
       const template = await templateStore.loadTemplate(templateId.value)
       if (template) {
+        template.name = templateName.value
         template.widgets = editorStore.widgets
         template.paperSize = editorStore.paperSize
         await templateStore.updateTemplate(template)
@@ -106,6 +124,26 @@ function handlePreview() {
 }
 
 function handlePrint() {
+  // 在打印前动态设置纸张大小
+  const { width, height } = editorStore.paperSize
+
+  // 移除旧的打印样式（如果存在）
+  const oldStyle = document.getElementById('dynamic-print-style')
+  if (oldStyle) {
+    oldStyle.remove()
+  }
+
+  // 创建新的 style 元素
+  const style = document.createElement('style')
+  style.id = 'dynamic-print-style'
+  style.textContent = `
+    @page {
+      size: ${width}mm ${height}mm;
+      margin: 0;
+    }
+  `
+  document.head.appendChild(style)
+
   window.print()
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, inject } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useDataSourceStore } from '@/stores/datasource'
 import type { TextWidget } from '@/types'
@@ -10,16 +10,36 @@ const props = defineProps<{
 
 const editorStore = useEditorStore()
 const dataSourceStore = useDataSourceStore()
+const renderMode = inject<'editor' | 'preview'>('renderMode', 'editor')
+const isPreview = computed(() => renderMode === 'preview')
 
 const isEditing = ref(false)
 const editContent = ref('')
 
+watch(() => props.widget, (newContent) => {
+  
+  console.log('Widget content changed:', newContent, dataSourceStore)
+},
+{
+  immediate: true,
+  deep: true
+})
+
 const displayContent = computed(() => {
   if (props.widget.dataSource) {
     const value = dataSourceStore.getColumnValue(props.widget.dataSource, 0)
-    return value !== '' ? String(value) : `[${props.widget.dataSource}]`
+    if (value !== '') return String(value)
+    if (isPreview.value) return ''
+    return null
   }
   return props.widget.content
+})
+
+const bindingKey = computed(() => {
+  if (!isPreview.value && props.widget.dataSource) {
+    return props.widget.dataSource
+  }
+  return null
 })
 
 const textStyle = computed(() => ({
@@ -58,6 +78,7 @@ function onKeydown(e: KeyboardEvent) {
 
 <template>
   <div class="text-widget" :style="textStyle" @dblclick="onDoubleClick">
+    
     <input
       v-if="isEditing"
       v-model="editContent"
@@ -66,6 +87,7 @@ function onKeydown(e: KeyboardEvent) {
       @blur="onBlur"
       @keydown="onKeydown"
     />
+    <span v-else-if="bindingKey" class="binding-tag">[绑定:{{ bindingKey }}]</span>
     <span v-else>{{ displayContent }}</span>
   </div>
 </template>
@@ -85,5 +107,16 @@ function onKeydown(e: KeyboardEvent) {
   font: inherit;
   color: inherit;
   text-align: inherit;
+}
+
+.binding-tag {
+  display: inline-block;
+  padding: 0 4px;
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 2px;
+  color: #1890ff;
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

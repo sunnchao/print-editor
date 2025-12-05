@@ -4,14 +4,15 @@ import { useDataSourceStore } from '@/stores/datasource'
 import type { BarcodeWidget } from '@/types'
 
 const props = defineProps<{
-  widget: BarcodeWidget
+  widget: BarcodeWidget & { _rowIndex?: number }
 }>()
 
 const dataSourceStore = useDataSourceStore()
 
 const displayValue = computed(() => {
   if (props.widget.dataSource) {
-    const value = dataSourceStore.getColumnValue(props.widget.dataSource, 0)
+    const rowIndex = props.widget._rowIndex ?? 0
+    const value = dataSourceStore.getColumnValue(props.widget.dataSource, rowIndex)
     return value !== '' ? String(value) : props.widget.value
   }
   return props.widget.value
