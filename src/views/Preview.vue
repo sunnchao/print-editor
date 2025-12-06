@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, provide } from 'vue'
+import { ref, onMounted, computed, provide, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ArrowLeftOutlined, PrinterOutlined } from '@ant-design/icons-vue'
 import { useTemplateStore } from '@/stores/template'
 import { useDataSourceStore } from '@/stores/datasource'
-import type { Template, Widget } from '@/types'
+import type { Template, Widget, TableWidget } from '@/types'
 import TextWidgetComp from '@/components/widgets/TextWidget.vue'
 import TableWidgetComp from '@/components/widgets/TableWidget.vue'
 import ImageWidgetComp from '@/components/widgets/ImageWidget.vue'
@@ -22,6 +22,9 @@ const dataSourceStore = useDataSourceStore()
 const template = ref<Template | null>(null)
 const isLoading = ref(true)
 
+// 存储复杂表格的实际高度变化
+const tableHeightOffsets = reactive<Record<string, number>>({})
+
 provide('renderMode', 'preview')
 
 const MM_TO_PX = 3.78
@@ -32,6 +35,55 @@ const paperStyle = computed(() => {
     width: `${template.value.paperSize.width * MM_TO_PX}px`,
     height: `${template.value.paperSize.height * MM_TO_PX}px`
   }
+})
+
+// 计算需要渲染的组件列表（包含循环的组件）
+const renderedWidgets = computed(() => {
+  if (!template.value) return []
+
+  const result: Array<{ widget: Widget; dataRowIndex?: number; key: string }> = []
+
+  for (const widget of template.value.widgets) {
+    // 表格组件不参与循环
+    if (widget.type === 'table') {
+      result.push({ widget, key: widget.id })
+      continue
+    }
+
+    // 检查是否绑定了数据源
+    const hasDataSource = 'dataSource' in widget && widget.dataSource
+    if (!hasDataSource) {
+      result.push({ widget, key: widget.id })
+      continue
+    }
+
+    // 获取 dataRowIndex
+    const dataRowIndex = 'dataRowIndex' in widget ? widget.dataRowIndex : 'all'
+
+    // 如果是 'all'，循环所有数据
+    if (dataRowIndex === 'all') {
+      const columnData = dataSourceStore.getColumnData(widget.dataSource!)
+      for (let i = 0; i < columnData.length; i++) {
+        result.push({
+          widget,
+          dataRowIndex: i,
+          key: `${widget.id}-row-${i}`
+        })
+      }
+    } else if (typeof dataRowIndex === 'number') {
+      // 如果是具体行索引，只渲染一次
+      result.push({
+        widget,
+        dataRowIndex,
+        key: `${widget.id}-row-${dataRowIndex}`
+      })
+    } else {
+      // 默认情况（未设置 dataRowIndex）
+      result.push({ widget, key: widget.id })
+    }
+  }
+
+  return result
 })
 
 onMounted(async () => {
@@ -62,8 +114,40 @@ function getWidgetComponent(type: string) {
   return components[type]
 }
 
+// 处理复杂表格高度变化
+function handleTableHeightChange(widgetId: string, actualHeight: number) {
+  if (!template.value) return
+
+  const widget = template.value.widgets.find((w: Widget) => w.id === widgetId)
+  if (!widget || widget.type !== 'table') return
+
+  // 计算高度偏移量（实际高度 - 原始高度）
+  const heightOffset = actualHeight - widget.height
+  tableHeightOffsets[widgetId] = heightOffset
+}
+
+// 计算组件的累计位置偏移量
+function getAccumulatedOffset(widget: Widget): number {
+  if (!template.value) return 0
+
+  let offset = 0
+
+  // 找出所有在当前组件上方的表格组件
+  for (const w of template.value.widgets) {
+    if (w.type !== 'table') continue
+    if (w.id === widget.id) break
+
+    // 如果表格在当前组件上方（y + height < widget.y），累加偏移量
+    if (w.y + w.height <= widget.y) {
+      offset += tableHeightOffsets[w.id] || 0
+    }
+  }
+
+  return offset
+}
+
 function getWidgetStyle(widget: Widget) {
-  return {
+  const baseStyle = {
     position: 'absolute' as const,
     left: `${widget.x}px`,
     top: `${widget.y}px`,
@@ -71,6 +155,22 @@ function getWidgetStyle(widget: Widget) {
     height: `${widget.height}px`,
     zIndex: widget.zIndex
   }
+
+  // 如果是复杂表格，应用实际高度
+  if (widget.type === 'table') {
+    const actualHeight = tableHeightOffsets[widget.id]
+    if (actualHeight !== undefined) {
+      baseStyle.height = `${widget.height + actualHeight}px`
+    }
+  }
+
+  // 计算累计偏移量并调整 top 位置
+  const offset = getAccumulatedOffset(widget)
+  if (offset !== 0) {
+    baseStyle.top = `${widget.y + offset}px`
+  }
+
+  return baseStyle
 }
 
 function goBack() {
@@ -122,11 +222,16 @@ function handlePrint() {
       <a-spin :spinning="isLoading">
         <div v-if="template" class="preview-paper" :style="paperStyle">
           <div
-            v-for="widget in template.widgets"
-            :key="widget.id"
-            :style="getWidgetStyle(widget)"
+            v-for="item in renderedWidgets"
+            :key="item.key"
+            :style="getWidgetStyle(item.widget)"
           >
-            <component :is="getWidgetComponent(widget.type)" :widget="widget" />
+            <component
+              :is="getWidgetComponent(item.widget.type)"
+              :widget="item.widget"
+              :data-row-index="item.dataRowIndex"
+              @height-change="(height) => handleTableHeightChange(item.widget.id, height)"
+            />
           </div>
         </div>
       </a-spin>

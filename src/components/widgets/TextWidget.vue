@@ -6,6 +6,7 @@ import type { TextWidget } from '@/types'
 
 const props = defineProps<{
   widget: TextWidget
+  dataRowIndex?: number
 }>()
 
 const editorStore = useEditorStore()
@@ -17,7 +18,7 @@ const isEditing = ref(false)
 const editContent = ref('')
 
 watch(() => props.widget, (newContent) => {
-  
+
   console.log('Widget content changed:', newContent, dataSourceStore)
 },
 {
@@ -27,7 +28,9 @@ watch(() => props.widget, (newContent) => {
 
 const displayContent = computed(() => {
   if (props.widget.dataSource) {
-    const value = dataSourceStore.getColumnValue(props.widget.dataSource, 0)
+    // 使用传入的 dataRowIndex，如果没有则使用 widget 上的 dataRowIndex，都没有则默认为 0
+    const rowIndex = props.dataRowIndex ?? (typeof props.widget.dataRowIndex === 'number' ? props.widget.dataRowIndex : 0)
+    const value = dataSourceStore.getColumnValue(props.widget.dataSource, rowIndex)
     if (value !== '') return String(value)
     if (isPreview.value) return ''
     return null
@@ -52,7 +55,7 @@ const textStyle = computed(() => ({
   height: '100%',
   display: 'flex',
   alignItems: 'center',
-  justifyContent: props.widget.textAlign === 'center' ? 'center' : 
+  justifyContent: props.widget.textAlign === 'center' ? 'center' :
                   props.widget.textAlign === 'right' ? 'flex-end' : 'flex-start',
   overflow: 'hidden'
 }))

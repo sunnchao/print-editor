@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch, inject, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, inject, onBeforeUnmount, onMounted, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useDataSourceStore } from '@/stores/datasource'
 import type { TableWidget } from '@/types'
 
 const props = defineProps<{
   widget: TableWidget
+}>()
+
+const emit = defineEmits<{
+  heightChange: [actualHeight: number]
 }>()
 
 const editorStore = useEditorStore()
@@ -267,7 +271,14 @@ function cloneCell(cell: any) {
     content: cell?.content ?? '',
     rowSpan: cell?.rowSpan,
     colSpan: cell?.colSpan,
-    dataSource: cell?.dataSource
+    dataSource: cell?.dataSource,
+    // 复制单元格样式属性
+    fontSize: cell?.fontSize,
+    fontFamily: cell?.fontFamily,
+    fontWeight: cell?.fontWeight,
+    color: cell?.color,
+    textAlign: cell?.textAlign,
+    backgroundColor: cell?.backgroundColor
   }
 }
 
@@ -374,7 +385,11 @@ const cellStyle = computed(() => (renderRowIndex: number, colIndex: number) => {
   const border = cellBorder.value
 
   // 获取单元格数据
-  const cell = props.widget.cells[actualRowIndex]?.[colIndex]
+  // 在预览模式下，从 renderRows 获取单元格数据（包含循环生成的行）
+  // 在编辑模式下，从 props.widget.cells 获取原始数据
+  const cell = isPreview.value
+    ? renderRows.value[renderRowIndex]?.[colIndex]
+    : props.widget.cells[actualRowIndex]?.[colIndex]
 
   // 基础样式
   const baseStyle: any = {
@@ -522,6 +537,31 @@ onBeforeUnmount(() => {
   stopColumnResize()
   stopRowResize()
 })
+
+// 计算预览模式下复杂表格的实际高度
+const actualHeight = computed(() => {
+  if (!isPreview.value || !isComplexTable.value) {
+    return props.widget.height
+  }
+
+  // 复杂表格在预览模式下，根据实际渲染的行数计算高度
+  const originalRows = props.widget.rows
+  const renderRowCount = renderRows.value.length
+
+  if (originalRows <= 0 || renderRowCount <= 0) {
+    return props.widget.height
+  }
+
+  // 计算实际高度：根据渲染行数与原始行数的比例
+  return props.widget.height * (renderRowCount / originalRows)
+})
+
+// 监听高度变化并通知父组件
+watch(actualHeight, (newHeight: number) => {
+  if (isPreview.value && isComplexTable.value) {
+    emit('heightChange', newHeight)
+  }
+}, { immediate: true })
 
 function onMouseEnter(renderRow: number, col: number) {
   if (isPreview.value || !isSelecting.value || !selectionStart.value) return

@@ -5,13 +5,16 @@ import type { QRCodeWidget } from '@/types'
 
 const props = defineProps<{
   widget: QRCodeWidget
+  dataRowIndex?: number
 }>()
 
 const dataSourceStore = useDataSourceStore()
 
 const displayValue = computed(() => {
   if (props.widget.dataSource) {
-    const value = dataSourceStore.getColumnValue(props.widget.dataSource, 0)
+    // 使用传入的 dataRowIndex，如果没有则使用 widget 上的 dataRowIndex，都没有则默认为 0
+    const rowIndex = props.dataRowIndex ?? (typeof props.widget.dataRowIndex === 'number' ? props.widget.dataRowIndex : 0)
+    const value = dataSourceStore.getColumnValue(props.widget.dataSource, rowIndex)
     return value !== '' ? String(value) : props.widget.value
   }
   return props.widget.value
