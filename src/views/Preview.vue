@@ -25,6 +25,9 @@ const isLoading = ref(true)
 // 存储复杂表格的实际高度变化
 const tableHeightOffsets = reactive<Record<string, number>>({})
 
+// 存储循环渲染组件的高度扩展
+const loopWidgetExpansions = reactive<Record<string, number>>({})
+
 provide('renderMode', 'preview')
 
 const MM_TO_PX = 3.78
@@ -41,7 +44,12 @@ const paperStyle = computed(() => {
 const renderedWidgets = computed(() => {
   if (!template.value) return []
 
-  const result: Array<{ widget: Widget; dataRowIndex?: number; key: string }> = []
+  const result: Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number }> = []
+
+  // 清空之前的循环扩展记录
+  Object.keys(loopWidgetExpansions).forEach(key => {
+    delete loopWidgetExpansions[key]
+  })
 
   for (const widget of template.value.widgets) {
     // 表格组件不参与循环
@@ -63,11 +71,19 @@ const renderedWidgets = computed(() => {
     // 如果是 'all'，循环所有数据
     if (dataRowIndex === 'all') {
       const columnData = dataSourceStore.getColumnData(widget.dataSource!)
-      for (let i = 0; i < columnData.length; i++) {
+      const loopCount = columnData.length
+
+      // 记录循环扩展的高度（除第一个实例外，其他实例占用的额外高度）
+      if (loopCount > 1) {
+        loopWidgetExpansions[widget.id] = widget.height * (loopCount - 1)
+      }
+
+      for (let i = 0; i < loopCount; i++) {
         result.push({
           widget,
           dataRowIndex: i,
-          key: `${widget.id}-row-${i}`
+          key: `${widget.id}-row-${i}`,
+          loopIndex: i
         })
       }
     } else if (typeof dataRowIndex === 'number') {
@@ -132,21 +148,27 @@ function getAccumulatedOffset(widget: Widget): number {
 
   let offset = 0
 
-  // 找出所有在当前组件上方的表格组件
+  // 遍历所有在当前组件上方的组件
   for (const w of template.value.widgets) {
-    if (w.type !== 'table') continue
+    // 跳过当前组件及其之后的组件
     if (w.id === widget.id) break
 
-    // 如果表格在当前组件上方（y + height < widget.y），累加偏移量
+    // 只考虑在当前组件上方的组件（y + height <= widget.y）
     if (w.y + w.height <= widget.y) {
-      offset += tableHeightOffsets[w.id] || 0
+      // 累加复杂表格的高度偏移
+      if (w.type === 'table') {
+        offset += tableHeightOffsets[w.id] || 0
+      }
+
+      // 累加循环组件的高度扩展
+      offset += loopWidgetExpansions[w.id] || 0
     }
   }
 
   return offset
 }
 
-function getWidgetStyle(widget: Widget) {
+function getWidgetStyle(widget: Widget, item?: { widget: Widget; dataRowIndex?: number; loopIndex?: number }) {
   const baseStyle = {
     position: 'absolute' as const,
     left: `${widget.x}px`,
@@ -165,7 +187,13 @@ function getWidgetStyle(widget: Widget) {
   }
 
   // 计算累计偏移量并调整 top 位置
-  const offset = getAccumulatedOffset(widget)
+  let offset = getAccumulatedOffset(widget)
+
+  // 如果是循环组件的非首个实例，需要额外偏移
+  if (item?.loopIndex !== undefined && item.loopIndex > 0) {
+    offset += widget.height * item.loopIndex
+  }
+
   if (offset !== 0) {
     baseStyle.top = `${widget.y + offset}px`
   }
@@ -224,7 +252,7 @@ function handlePrint() {
           <div
             v-for="item in renderedWidgets"
             :key="item.key"
-            :style="getWidgetStyle(item.widget)"
+            :style="getWidgetStyle(item.widget, item)"
           >
             <component
               :is="getWidgetComponent(item.widget.type)"
