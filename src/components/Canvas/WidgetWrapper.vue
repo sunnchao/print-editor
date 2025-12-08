@@ -25,6 +25,10 @@ const isResizing = ref(false)
 const dragOffset = ref({ x: 0, y: 0 })
 const resizeStart = ref({ x: 0, y: 0, width: 0, height: 0 })
 
+// RAF 优化相关
+let rafId: number | null = null
+let lastMouseEvent: MouseEvent | null = null
+
 const isSelected = computed(() => editorStore.selectedWidgetId === props.widget.id)
 
 const wrapperStyle = computed(() => ({
@@ -51,34 +55,85 @@ const widgetComponent = computed(() => {
 function onMouseDown(e: MouseEvent) {
   if (e.button !== 0) return
   editorStore.selectWidget(props.widget.id)
-  
+
   isDragging.value = true
   dragOffset.value = {
     x: e.clientX - props.widget.x,
     y: e.clientY - props.widget.y
   }
-  
-  window.addEventListener('mousemove', onDrag)
+
+  window.addEventListener('mousemove', onDragThrottled)
   window.addEventListener('mouseup', onDragEnd)
 }
 
-function onDrag(e: MouseEvent) {
+// 使用 RAF 节流的拖拽处理
+function onDragThrottled(e: MouseEvent) {
   if (!isDragging.value) return
+
+  lastMouseEvent = e
+
+  if (rafId === null) {
+    rafId = requestAnimationFrame(processDrag)
+  }
+}
+
+// 获取附近的组件（空间索引优化）
+function getNearbyWidgets(x: number, y: number, width: number, height: number, threshold: number): Widget[] {
+  const allWidgets = editorStore.widgets.filter(w => w.id !== props.widget.id)
+
+  // 如果组件数量较少，直接返回所有组件
+  if (allWidgets.length <= 10) {
+    return allWidgets
+  }
+
+  // 计算扩展的边界框（包含吸附阈值）
+  const expandedLeft = x - threshold
+  const expandedRight = x + width + threshold
+  const expandedTop = y - threshold
+  const expandedBottom = y + height + threshold
+
+  // 只返回在附近范围内的组件
+  return allWidgets.filter(w => {
+    const wRight = w.x + w.width
+    const wBottom = w.y + w.height
+
+    // 检查是否有重叠（包括阈值）
+    return !(
+      w.x > expandedRight ||
+      wRight < expandedLeft ||
+      w.y > expandedBottom ||
+      wBottom < expandedTop
+    )
+  })
+}
+
+function processDrag() {
+  rafId = null
+
+  if (!lastMouseEvent || !isDragging.value) return
+
+  const e = lastMouseEvent
   const scale = editorStore.scale
-  
+
   let newX = (e.clientX - dragOffset.value.x) / scale
   let newY = (e.clientY - dragOffset.value.y) / scale
-  
+
   // 吸附逻辑
   const threshold = 5
   const snapLines: SnapLine[] = []
-  
-  // 获取其他组件
-  const otherWidgets = editorStore.widgets.filter(w => w.id !== props.widget.id)
-  
+
+  // 获取附近的组件（空间索引优化）
+  const nearbyWidgets = getNearbyWidgets(
+    newX,
+    newY,
+    props.widget.width,
+    props.widget.height,
+    threshold * 10 // 扩大搜索范围
+  )
+
   // 水平方向吸附 (X轴)
   let snappedX = false
-  
+
   // 1. 画布中心
   const paperWidth = editorStore.paperSize.width * 3.78 // MM_TO_PX
   if (Math.abs(newX + props.widget.width / 2 - paperWidth / 2) < threshold) {
@@ -86,10 +141,10 @@ function onDrag(e: MouseEvent) {
     snapLines.push({ type: 'vertical', position: paperWidth / 2 })
     snappedX = true
   }
-  
-  // 2. 其他组件
+
+  // 2. 附近组件
   if (!snappedX) {
-    for (const w of otherWidgets) {
+    for (const w of nearbyWidgets) {
       // 左对左
       if (Math.abs(newX - w.x) < threshold) {
         newX = w.x
@@ -127,10 +182,10 @@ function onDrag(e: MouseEvent) {
       }
     }
   }
-  
+
   // 垂直方向吸附 (Y轴)
   let snappedY = false
-  
+
   // 1. 画布中心
   const paperHeight = editorStore.paperSize.height * 3.78 // MM_TO_PX
   if (Math.abs(newY + props.widget.height / 2 - paperHeight / 2) < threshold) {
@@ -138,10 +193,10 @@ function onDrag(e: MouseEvent) {
     snapLines.push({ type: 'horizontal', position: paperHeight / 2 })
     snappedY = true
   }
-  
-  // 2. 其他组件
+
+  // 2. 附近组件
   if (!snappedY) {
-    for (const w of otherWidgets) {
+    for (const w of nearbyWidgets) {
       // 顶对顶
       if (Math.abs(newY - w.y) < threshold) {
         newY = w.y
@@ -190,8 +245,16 @@ function onDrag(e: MouseEvent) {
 
 function onDragEnd() {
   isDragging.value = false
+  lastMouseEvent = null
+
+  // 清理未完成的 RAF
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
+    rafId = null
+  }
+
   editorStore.clearSnapLines()
-  window.removeEventListener('mousemove', onDrag)
+  window.removeEventListener('mousemove', onDragThrottled)
   window.removeEventListener('mouseup', onDragEnd)
 }
 

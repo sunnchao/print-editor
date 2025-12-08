@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Widget, PaperSize, SnapLine, TableSelection, TableWidget, TableCell } from '@/types'
 import { PAPER_SIZES } from '@/types'
+import { cloneDeep } from 'lodash-es'
 
 interface MasterCell {
   row: number
@@ -173,7 +174,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   function saveHistory() {
     history.value = history.value.slice(0, historyIndex.value + 1)
-    history.value.push(JSON.parse(JSON.stringify(widgets.value)))
+    history.value.push(cloneDeep(widgets.value))
     historyIndex.value++
     if (history.value.length > 50) {
       history.value.shift()
@@ -234,7 +235,7 @@ export const useEditorStore = defineStore('editor', () => {
   function copyWidget(id: string) {
     const widget = widgets.value.find(w => w.id === id)
     if (widget) {
-      clipboard.value = JSON.parse(JSON.stringify(widget))
+      clipboard.value = cloneDeep(widget)
     }
   }
 
@@ -268,14 +269,14 @@ export const useEditorStore = defineStore('editor', () => {
   function undo() {
     if (historyIndex.value > 0) {
       historyIndex.value--
-      widgets.value = JSON.parse(JSON.stringify(history.value[historyIndex.value]))
+      widgets.value = cloneDeep(history.value[historyIndex.value])
     }
   }
 
   function redo() {
     if (historyIndex.value < history.value.length - 1) {
       historyIndex.value++
-      widgets.value = JSON.parse(JSON.stringify(history.value[historyIndex.value]))
+      widgets.value = cloneDeep(history.value[historyIndex.value])
     }
   }
 
@@ -306,7 +307,7 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function loadWidgets(newWidgets: Widget[]) {
-    widgets.value = JSON.parse(JSON.stringify(newWidgets))
+    widgets.value = cloneDeep(newWidgets)
     selectedWidgetId.value = null
     history.value = []
     historyIndex.value = -1
@@ -346,7 +347,7 @@ export const useEditorStore = defineStore('editor', () => {
     const { startRow, startCol, endRow, endCol } = tableSelection.value
     if (startRow === endRow && startCol === endCol) return
 
-    const newCells = JSON.parse(JSON.stringify(table.cells))
+    const newCells = cloneDeep(table.cells)
 
     // 设置主单元格
     newCells[startRow][startCol].rowSpan = endRow - startRow + 1
@@ -374,7 +375,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     if ((cell.rowSpan || 1) === 1 && (cell.colSpan || 1) === 1) return
 
-    const newCells = JSON.parse(JSON.stringify(table.cells))
+    const newCells = cloneDeep(table.cells)
     const rowSpan = cell.rowSpan || 1
     const colSpan = cell.colSpan || 1
 

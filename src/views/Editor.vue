@@ -123,28 +123,40 @@ function handlePreview() {
   }
 }
 
-function handlePrint() {
-  // 在打印前动态设置纸张大小
-  const { width, height } = editorStore.paperSize
-
-  // 移除旧的打印样式（如果存在）
-  const oldStyle = document.getElementById('dynamic-print-style')
-  if (oldStyle) {
-    oldStyle.remove()
+async function handlePrint() {
+  // 编辑器模式下，打印应该显示预览数据
+  // 先保存模板，然后打开预览页面并自动打印
+  if (!templateId.value) {
+    message.warning('请先保存模板后再打印')
+    return
   }
 
-  // 创建新的 style 元素
-  const style = document.createElement('style')
-  style.id = 'dynamic-print-style'
-  style.textContent = `
-    @page {
-      size: ${width}mm ${height}mm;
-      margin: 0;
+  try {
+    // 先保存当前状态
+    isSaving.value = true
+    const template = await templateStore.loadTemplate(templateId.value)
+    if (template) {
+      template.name = templateName.value
+      template.widgets = editorStore.widgets
+      template.paperSize = editorStore.paperSize
+      await templateStore.updateTemplate(template)
     }
-  `
-  document.head.appendChild(style)
+    isSaving.value = false
 
-  window.print()
+    // 在新窗口打开预览页面，并传递打印意图
+    const printWindow = window.open(
+      `/preview/${templateId.value}?autoPrint=true`,
+      '_blank',
+      'width=1200,height=800'
+    )
+
+    if (!printWindow) {
+      message.error('无法打开打印窗口，请检查浏览器弹窗设置')
+    }
+  } catch (e) {
+    isSaving.value = false
+    message.error('打印准备失败: ' + e)
+  }
 }
 
 function handleExport() {

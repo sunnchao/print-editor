@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useDataSourceStore } from '@/stores/datasource'
 import type { TableWidget, TableCell } from '@/types'
+import { cloneDeep } from 'lodash-es'
 
 const props = defineProps<{
   widget: TableWidget
@@ -309,7 +310,7 @@ function handleDeleteCol() {
 function updateActiveCell(updates: Partial<TableCell>) {
   if (!tableSelection.value) return
   const { startRow, startCol } = tableSelection.value
-  const newCells = JSON.parse(JSON.stringify(props.widget.cells))
+  const newCells = cloneDeep(props.widget.cells)
   newCells[startRow][startCol] = {
     ...newCells[startRow][startCol],
     ...updates
@@ -345,7 +346,7 @@ function handleColumnBindingChange(value: string | null) {
 function updateCellStyle(styleUpdates: Partial<TableCell>) {
   if (!tableSelection.value) return
   const { startRow, endRow, startCol, endCol } = tableSelection.value
-  const newCells = JSON.parse(JSON.stringify(props.widget.cells))
+  const newCells = cloneDeep(props.widget.cells)
 
   // 更新选中区域的所有单元格样式
   for (let row = startRow; row <= endRow; row++) {

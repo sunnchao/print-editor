@@ -1,4 +1,5 @@
 import type { DataSource, Template } from '@/types'
+import { cloneDeep } from 'lodash-es'
 
 const DB_NAME = 'PrintEditorDB'
 const DB_VERSION = 2
@@ -48,8 +49,8 @@ export async function saveDataSource(dataSource: DataSource): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction([DATA_SOURCE_STORE], 'readwrite')
     const store = transaction.objectStore(DATA_SOURCE_STORE)
-    // 使用 JSON.parse(JSON.stringify()) 去除 Vue 的响应式代理，防止 DataCloneError
-    const request = store.put(JSON.parse(JSON.stringify(dataSource)))
+    // 使用 cloneDeep 去除 Vue 的响应式代理，防止 DataCloneError
+    const request = store.put(cloneDeep(dataSource))
 
     request.onsuccess = () => resolve()
     request.onerror = () => reject(new Error('保存数据源失败'))
@@ -103,8 +104,8 @@ export async function saveTemplate(template: Template): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction([TEMPLATE_STORE], 'readwrite')
     const store = transaction.objectStore(TEMPLATE_STORE)
-    // 使用 JSON.parse(JSON.stringify()) 去除 Vue 的响应式代理，防止 DataCloneError
-    const request = store.put(JSON.parse(JSON.stringify(template)))
+    // 使用 cloneDeep 去除 Vue 的响应式代理，防止 DataCloneError
+    const request = store.put(cloneDeep(template))
 
     request.onsuccess = () => resolve()
     request.onerror = () => reject(new Error('保存模板失败'))

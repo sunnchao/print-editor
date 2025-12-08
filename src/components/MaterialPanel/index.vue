@@ -22,8 +22,8 @@ const materials: MaterialItem[] = [
   { type: "image", label: "图片", icon: PictureOutlined },
   { type: "table", label: "简单表格", icon: TableOutlined, tableMode: "simple" },
   { type: "table", label: "复杂表格", icon: TableOutlined, tableMode: "complex" },
-  { type: "barcode", label: "条形码", icon: BarcodeOutlined },
-  { type: "qrcode", label: "二维码", icon: QrcodeOutlined },
+  // { type: "barcode", label: "条形码", icon: BarcodeOutlined },
+  // { type: "qrcode", label: "二维码", icon: QrcodeOutlined },
   { type: "line", label: "线条", icon: LineOutlined },
   { type: "rect", label: "矩形框", icon: BorderOutlined }
 ]

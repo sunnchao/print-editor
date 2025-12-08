@@ -3,6 +3,7 @@ import { computed, ref, watch, inject, onBeforeUnmount, onMounted, nextTick } fr
 import { useEditorStore } from '@/stores/editor'
 import { useDataSourceStore } from '@/stores/datasource'
 import type { TableWidget } from '@/types'
+import { cloneDeep } from 'lodash-es'
 
 const props = defineProps<{
   widget: TableWidget
@@ -16,6 +17,10 @@ const editorStore = useEditorStore()
 const dataSourceStore = useDataSourceStore()
 const renderMode = inject<'editor' | 'preview'>('renderMode', 'editor')
 const isPreview = computed(() => renderMode === 'preview')
+
+// 缓存预览表格数据
+const previewRowsCache = ref<any[] | null>(null)
+const previewCacheKey = ref<string>('')
 
 const MIN_COLUMN_PX = 20
 const MIN_ROW_PX = 16
@@ -122,10 +127,41 @@ const isSelected = computed(() => (row: number, col: number) => {
 })
 
 const renderRows = computed(() => {
-  let rows = isPreview.value ? buildPreviewRows() : props.widget.cells
+  if (!isPreview.value) {
+    // 编辑模式：直接返回原始数据
+    let rows = props.widget.cells
+    if (isHeaderHidden.value) {
+      rows = rows.slice(headerRowCount.value)
+    }
+    return rows
+  }
+
+  // 预览模式：使用缓存优化
+  const cacheKey = JSON.stringify({
+    cells: props.widget.cells.length,
+    cellsHash: props.widget.cells[0]?.[0]?.content, // 简单的哈希检查
+    columnBindings: columnBindings.value,
+    headerRows: headerRowCount.value,
+    dataSourceName: dataSourceStore.currentDataSource?.fileName,
+    dataSourceLength: dataSourceStore.currentDataSource?.data?.length,
+    isHeaderHidden: isHeaderHidden.value
+  })
+
+  // 检查缓存是否有效
+  if (previewRowsCache.value && previewCacheKey.value === cacheKey) {
+    return previewRowsCache.value
+  }
+
+  // 缓存失效，重新构建
+  let rows = buildPreviewRows()
   if (isHeaderHidden.value) {
     rows = rows.slice(headerRowCount.value)
   }
+
+  // 更新缓存
+  previewRowsCache.value = rows
+  previewCacheKey.value = cacheKey
+
   return rows
 })
 
@@ -678,7 +714,7 @@ function onCellDoubleClick(renderRow: number, col: number) {
 function onCellBlur() {
   if (!isPreview.value && editingCell.value) {
     const { actualRow, col } = editingCell.value
-    const newCells = JSON.parse(JSON.stringify(props.widget.cells))
+    const newCells = cloneDeep(props.widget.cells)
     newCells[actualRow][col].content = editContent.value
     editorStore.updateWidget(props.widget.id, { cells: newCells })
     editingCell.value = null

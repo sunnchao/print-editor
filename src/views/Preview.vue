@@ -5,7 +5,7 @@ import { message } from 'ant-design-vue'
 import { ArrowLeftOutlined, PrinterOutlined } from '@ant-design/icons-vue'
 import { useTemplateStore } from '@/stores/template'
 import { useDataSourceStore } from '@/stores/datasource'
-import type { Template, Widget, TableWidget } from '@/types'
+import type { Template, Widget } from '@/types'
 import TextWidgetComp from '@/components/widgets/TextWidget.vue'
 import TableWidgetComp from '@/components/widgets/TableWidget.vue'
 import ImageWidgetComp from '@/components/widgets/ImageWidget.vue'
@@ -112,9 +112,20 @@ onMounted(async () => {
     } else {
       message.error('模板不存在')
       router.push('/')
+      isLoading.value = false
+      return
     }
   }
   isLoading.value = false
+
+  // 检查是否需要自动打印
+  const autoPrint = route.query.autoPrint === 'true'
+  if (autoPrint && template.value) {
+    // 等待 DOM 更新和渲染完成后再触发打印
+    setTimeout(() => {
+      handlePrint()
+    }, 500) // 给予足够时间让页面完全渲染
+  }
 })
 
 function getWidgetComponent(type: string) {
@@ -140,6 +151,11 @@ function handleTableHeightChange(widgetId: string, actualHeight: number) {
   // 计算高度偏移量（实际高度 - 原始高度）
   const heightOffset = actualHeight - widget.height
   tableHeightOffsets[widgetId] = heightOffset
+}
+
+// 创建表格高度变化处理函数（用于模板绑定）
+const createHeightChangeHandler = (widgetId: string) => {
+  return (height: number) => handleTableHeightChange(widgetId, height)
 }
 
 // 计算组件的累计位置偏移量
@@ -258,7 +274,7 @@ function handlePrint() {
               :is="getWidgetComponent(item.widget.type)"
               :widget="item.widget"
               :data-row-index="item.dataRowIndex"
-              @height-change="(height) => handleTableHeightChange(item.widget.id, height)"
+              @height-change="createHeightChangeHandler(item.widget.id)"
             />
           </div>
         </div>

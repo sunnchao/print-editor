@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { UploadOutlined, DownloadOutlined, PrinterOutlined } from '@ant-design/icons-vue'
+import { UploadOutlined, DownloadOutlined, PrinterOutlined, SwapOutlined } from '@ant-design/icons-vue'
 import { useEditorStore } from '@/stores/editor'
 import { useDataSourceStore } from '@/stores/datasource'
 import { PAPER_SIZES } from '@/types'
@@ -58,6 +58,41 @@ function handleCustomHeightChange(height: number | null) {
     width: editorStore.paperSize.width,
     height
   })
+}
+
+// 交换宽高（横竖切换）
+function swapPaperSize() {
+  editorStore.setPaperSize({
+    name: '自定义',
+    width: editorStore.paperSize.height,
+    height: editorStore.paperSize.width
+  })
+  message.success('已切换纸张方向')
+}
+
+// 常用自定义尺寸
+const customPresets = [
+  { label: '80x80mm (收据)', width: 80, height: 80 },
+  { label: '100x150mm (标签)', width: 100, height: 150 },
+  { label: '120x200mm (快递单)', width: 120, height: 200 },
+  { label: '148x210mm (A5)', width: 148, height: 210 },
+  { label: '210x297mm (A4)', width: 210, height: 297 }
+]
+
+function applyPreset(width: number, height: number) {
+  editorStore.setPaperSize({
+    name: '自定义',
+    width,
+    height
+  })
+  message.success('已应用预设尺寸')
+}
+
+function handlePresetChange(label: string) {
+  const preset = customPresets.find(p => p.label === label)
+  if (preset) {
+    applyPreset(preset.width, preset.height)
+  }
 }
 
 async function handleExcelUpload(info: UploadChangeParam) {
@@ -245,24 +280,59 @@ function print() {
             </a-form-item>
 
             <template v-if="isCustomPaper">
+              <a-form-item label="快捷尺寸">
+                <a-select
+                  placeholder="选择预设尺寸"
+                  @change="handlePresetChange"
+                  :value="undefined"
+                  style="width: 100%"
+                >
+                  <a-select-option v-for="preset in customPresets" :key="preset.label" :value="preset.label">
+                    {{ preset.label }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+
               <a-form-item label="宽度 (mm)">
                 <a-input-number
                   :value="editorStore.paperSize.width"
                   @change="handleCustomWidthChange"
                   :min="50"
                   :max="1000"
+                  :step="1"
                   style="width: 100%"
+                  placeholder="输入宽度"
                 />
               </a-form-item>
+
               <a-form-item label="高度 (mm)">
                 <a-input-number
                   :value="editorStore.paperSize.height"
                   @change="handleCustomHeightChange"
                   :min="50"
                   :max="1000"
+                  :step="1"
                   style="width: 100%"
+                  placeholder="输入高度"
                 />
               </a-form-item>
+
+              <a-form-item label="方向切换">
+                <a-button block @click="swapPaperSize">
+                  <template #icon>
+                    <swap-outlined />
+                  </template>
+                  横竖切换 ({{ editorStore.paperSize.width }}x{{ editorStore.paperSize.height }}mm)
+                </a-button>
+              </a-form-item>
+
+              <a-alert
+                message="当前尺寸"
+                :description="`宽: ${editorStore.paperSize.width}mm, 高: ${editorStore.paperSize.height}mm`"
+                type="info"
+                show-icon
+                style="margin-bottom: 16px"
+              />
             </template>
 
             <a-form-item label="缩放">
