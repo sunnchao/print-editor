@@ -152,6 +152,7 @@ export const useEditorStore = defineStore('editor', () => {
   const selectedWidgetId = ref<string | null>(null)
   const paperSize = ref<PaperSize>(PAPER_SIZES[0])
   const scale = ref(1)
+  const globalForcePageBreak = ref(false) // 全局强制分页设置
   const history = ref<Widget[][]>([])
   const historyIndex = ref(-1)
   const clipboard = ref<Widget | null>(null)
@@ -288,10 +289,15 @@ export const useEditorStore = defineStore('editor', () => {
     scale.value = Math.max(0.25, Math.min(3, newScale))
   }
 
+  function setGlobalForcePageBreak(value: boolean) {
+    globalForcePageBreak.value = value
+  }
+
   function exportTemplate(): string {
     return JSON.stringify({
       paperSize: paperSize.value,
-      widgets: widgets.value
+      widgets: widgets.value,
+      globalForcePageBreak: globalForcePageBreak.value
     }, null, 2)
   }
 
@@ -300,6 +306,7 @@ export const useEditorStore = defineStore('editor', () => {
       const data = JSON.parse(json)
       if (data.paperSize) paperSize.value = data.paperSize
       if (data.widgets) widgets.value = data.widgets
+      if (data.globalForcePageBreak !== undefined) globalForcePageBreak.value = data.globalForcePageBreak
       saveHistory()
     } catch (e) {
       console.error('导入模板失败:', e)
@@ -596,6 +603,7 @@ export const useEditorStore = defineStore('editor', () => {
     selectedWidget,
     paperSize,
     scale,
+    globalForcePageBreak,
     clipboard,
     addWidget,
     updateWidget,
@@ -609,6 +617,7 @@ export const useEditorStore = defineStore('editor', () => {
     redo,
     setPaperSize,
     setScale,
+    setGlobalForcePageBreak,
     exportTemplate,
     importTemplate,
     loadWidgets,

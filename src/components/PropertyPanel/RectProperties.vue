@@ -66,5 +66,17 @@ function update(key: keyof RectWidget, value: any) {
         style="width: 100%"
       />
     </a-form-item>
+
+    <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>
+
+    <a-form-item label="强制分页">
+      <a-switch
+        :checked="widget.forcePageBreak || false"
+        @change="v => update('forcePageBreak', v)"
+      />
+      <div style="font-size: 12px; color: #999; margin-top: 4px">
+        开启后，此组件将独占一页
+      </div>
+    </a-form-item>
   </a-form>
 </template>

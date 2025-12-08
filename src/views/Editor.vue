@@ -50,6 +50,9 @@ onMounted(async () => {
       templateName.value = template.name
       editorStore.setPaperSize(template.paperSize)
       editorStore.loadWidgets(template.widgets)
+      if (template.globalForcePageBreak !== undefined) {
+        editorStore.setGlobalForcePageBreak(template.globalForcePageBreak)
+      }
     } else {
       message.error('模板不存在')
       router.push('/')
@@ -76,6 +79,9 @@ watch(() => route.params.id, async (newId) => {
       templateName.value = template.name
       editorStore.setPaperSize(template.paperSize)
       editorStore.loadWidgets(template.widgets)
+      if (template.globalForcePageBreak !== undefined) {
+        editorStore.setGlobalForcePageBreak(template.globalForcePageBreak)
+      }
     }
   }
 })
@@ -95,6 +101,7 @@ async function handleSave() {
         template.name = templateName.value
         template.widgets = editorStore.widgets
         template.paperSize = editorStore.paperSize
+        template.globalForcePageBreak = editorStore.globalForcePageBreak
         await templateStore.updateTemplate(template)
         message.success('保存成功')
       }
@@ -103,6 +110,7 @@ async function handleSave() {
       const template = await templateStore.createTemplate(templateName.value)
       template.widgets = editorStore.widgets
       template.paperSize = editorStore.paperSize
+      template.globalForcePageBreak = editorStore.globalForcePageBreak
       await templateStore.updateTemplate(template)
       templateId.value = template.id
       router.replace(`/editor/${template.id}`)

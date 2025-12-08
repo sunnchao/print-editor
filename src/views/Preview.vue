@@ -117,6 +117,9 @@ const pagedWidgets = computed(() => {
   let currentPageIndex = 0
   let nextTopInCurrentPage = 0  // 下一个组件在当前页面中应该放置的 top 位置
 
+  // 检查是否启用了全局强制分页
+  const globalForce = template.value.globalForcePageBreak || false
+
   for (const item of renderedWidgets.value) {
     const widget = item.widget
 
@@ -131,12 +134,15 @@ const pagedWidgets = computed(() => {
     const spaceLeft = paperHeight - nextTopInCurrentPage
 
     // 判断是否需要换页：
-    // 1. 当前页不为空
-    // 2. 剩余空间不足以容纳整个组件
-    // 3. 复杂表格除外（表格可以跨页）
-    const needNewPage = currentPage.length > 0 &&
-                        spaceLeft < actualHeight &&
-                        widget.type !== 'table'
+    // 1. 全局强制分页：每个组件独占一页（除了当前页为空）
+    // 2. 组件强制分页：该组件独占一页（除了当前页为空）
+    // 3. 常规逻辑：剩余空间不足以容纳整个组件，且当前页不为空
+    // 4. 复杂表格除外（表格可以跨页）
+    const needNewPage = currentPage.length > 0 && (
+      globalForce || // 全局强制分页
+      widget.forcePageBreak || // 组件强制分页
+      (spaceLeft < actualHeight && widget.type !== 'table') // 空间不足
+    )
 
     if (needNewPage) {
       // 保存当前页
@@ -157,6 +163,14 @@ const pagedWidgets = computed(() => {
 
     // 更新下一个组件的位置
     nextTopInCurrentPage += actualHeight
+
+    // 如果启用了全局强制分页或组件强制分页，当前组件后立即新建页面
+    if (globalForce || widget.forcePageBreak) {
+      pages.push(currentPage)
+      currentPage = []
+      currentPageIndex++
+      nextTopInCurrentPage = 0
+    }
   }
 
   // 添加最后一页
@@ -263,7 +277,7 @@ function goBack() {
 }
 
 function handlePrint() {
-  // 在打印前动态设置纸张大小
+  // 在打印前动态设置画布大小
   if (template.value) {
     const { width, height } = template.value.paperSize
 

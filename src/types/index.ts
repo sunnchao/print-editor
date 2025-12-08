@@ -9,6 +9,7 @@ export interface WidgetBase {
   height: number
   zIndex: number
   locked?: boolean
+  forcePageBreak?: boolean // 是否强制分页（此组件独占一页）
 }
 
 export interface TextWidget extends WidgetBase {
@@ -125,18 +126,20 @@ export interface PaperSize {
 
 export const PAPER_SIZES: PaperSize[] = [
   // A 系列
-  { name: 'A3', width: 297, height: 420 },
+  // { name: 'A3', width: 297, height: 420 },
   { name: 'A4', width: 210, height: 297 },
-  { name: 'A5', width: 148, height: 210 },
-  { name: 'A6', width: 105, height: 148 },
+  // { name: 'A5', width: 148, height: 210 },
+  // { name: 'A6', width: 105, height: 148 },
   // B 系列
-  { name: 'B4', width: 250, height: 353 },
-  { name: 'B5', width: 176, height: 250 },
-  { name: 'B6', width: 125, height: 176 },
+  // { name: 'B4', width: 250, height: 353 },
+  // { name: 'B5', width: 176, height: 250 },
+  // { name: 'B6', width: 125, height: 176 },
   // 其他常用尺寸
-  { name: 'Letter', width: 216, height: 279 },
-  { name: 'Legal', width: 216, height: 356 },
-  { name: '自定义', width: 210, height: 297 }
+//   三联纸：215 x 93
+// 四联纸：215 x 70
+  { name: '三联纸', width: 215, height: 93 },
+  { name: '四联纸', width: 215, height: 70 },
+  // { name: '自定义', width: 210, height: 297 }
 ]
 
 export interface Template {
@@ -148,6 +151,7 @@ export interface Template {
   thumbnail?: string
   createdAt: string
   updatedAt: string
+  globalForcePageBreak?: boolean // 全局强制分页（每个组件独占一页）
 }
 
 export interface SnapLine {

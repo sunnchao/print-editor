@@ -7,6 +7,9 @@ import { cloneDeep } from 'lodash-es'
 
 const props = defineProps<{
   widget: TableWidget
+  dataRowIndex?: number  // 数据行索引（用于循环渲染）
+  startRow?: number      // 开始行索引（用于跨页分割表格）
+  endRow?: number        // 结束行索引（用于跨页分割表格）
 }>()
 
 const emit = defineEmits<{

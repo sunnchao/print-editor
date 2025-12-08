@@ -146,7 +146,7 @@ function importTemplate(info: UploadChangeParam) {
 }
 
 function print() {
-  // 在打印前动态设置纸张大小
+  // 在打印前动态设置画布大小
   const { width, height } = editorStore.paperSize
 
   // 移除旧的打印样式（如果存在）
@@ -268,7 +268,7 @@ function print() {
       <a-tab-pane key="page" tab="页面">
         <div class="panel-content">
           <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
-            <a-form-item label="纸张大小">
+            <a-form-item label="画布大小">
               <a-select
                 :value="editorStore.paperSize.name"
                 @change="handlePaperSizeChange"
@@ -334,6 +334,18 @@ function print() {
                 style="margin-bottom: 16px"
               />
             </template>
+
+            <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>
+
+            <a-form-item label="全局强制分页">
+              <a-switch
+                :checked="editorStore.globalForcePageBreak || false"
+                @change="(v: boolean) => editorStore.setGlobalForcePageBreak(v)"
+              />
+              <div style="font-size: 12px; color: #999; margin-top: 4px">
+                开启后，每个组件将独占一页（优先级高于单个组件设置）
+              </div>
+            </a-form-item>
 
             <a-form-item label="缩放">
               <a-slider

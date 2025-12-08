@@ -708,6 +708,20 @@ function updateColWidth(widthPx: number) {
     <p v-else class="table-cell-empty">请选择单元格以调整行高列宽</p>
   </div>
 
+  <!-- 高级设置 -->
+  <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>
+  <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small" style="padding: 0 8px">
+    <a-form-item label="强制分页">
+      <a-switch
+        :checked="widget.forcePageBreak || false"
+        @change="v => update('forcePageBreak', v)"
+      />
+      <div style="font-size: 12px; color: #999; margin-top: 4px">
+        开启后，此组件将独占一页
+      </div>
+    </a-form-item>
+  </a-form>
+
 </template>
 
 <style scoped>
