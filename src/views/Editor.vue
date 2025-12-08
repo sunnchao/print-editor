@@ -15,12 +15,15 @@ import EditorCanvas from '@/components/Canvas/index.vue'
 import PropertyPanel from '@/components/PropertyPanel/index.vue'
 import { useEditorStore } from '@/stores/editor'
 import { useTemplateStore } from '@/stores/template'
+import { useDataSourceStore } from '@/stores/datasource'
 import type { Template } from '@/types'
+import { exportAsHtml, downloadHtml } from '@/utils/exportHtml'
 
 const route = useRoute()
 const router = useRouter()
 const editorStore = useEditorStore()
 const templateStore = useTemplateStore()
+const dataSourceStore = useDataSourceStore()
 
 const templateId = ref<string | null>(null)
 const templateName = ref('未命名模板')
@@ -159,7 +162,7 @@ async function handlePrint() {
   }
 }
 
-function handleExport() {
+function handleExportJson() {
   const data: Partial<Template> = {
     name: templateName.value,
     paperSize: editorStore.paperSize,
@@ -173,7 +176,61 @@ function handleExport() {
   a.download = `${templateName.value}.json`
   a.click()
   URL.revokeObjectURL(url)
-  message.success('导出成功')
+  message.success('JSON 导出成功')
+}
+
+function handleExportHtml() {
+  try {
+    const template: Template = {
+      id: templateId.value || '',
+      name: templateName.value,
+      paperSize: editorStore.paperSize,
+      widgets: editorStore.widgets,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    const html = exportAsHtml(template, dataSourceStore)
+    downloadHtml(html, templateName.value)
+    message.success('HTML 导出成功，可在浏览器中打开并二次编辑')
+  } catch (error) {
+    message.error('HTML 导出失败')
+    console.error(error)
+  }
+}
+
+async function handleExportPdf() {
+  // 先保存模板，然后跳转到预览页面让用户导出 PDF
+  try {
+    isSaving.value = true
+
+    if (templateId.value) {
+      const template = await templateStore.loadTemplate(templateId.value)
+      if (template) {
+        template.name = templateName.value
+        template.widgets = editorStore.widgets
+        template.paperSize = editorStore.paperSize
+        await templateStore.updateTemplate(template)
+      }
+    } else {
+      const template = await templateStore.createTemplate(templateName.value)
+      template.widgets = editorStore.widgets
+      template.paperSize = editorStore.paperSize
+      await templateStore.updateTemplate(template)
+      templateId.value = template.id
+    }
+
+    message.info('正在跳转到预览页面导出 PDF...')
+
+    // 跳转到预览页面
+    setTimeout(() => {
+      router.push(`/preview/${templateId.value}?exportPdf=true`)
+    }, 500)
+  } catch (e) {
+    message.error('导出失败')
+  } finally {
+    isSaving.value = false
+  }
 }
 
 function triggerImport() {
@@ -246,10 +303,25 @@ function handleImport(event: Event) {
             <upload-outlined />
             导入
           </a-button>
-          <a-button @click="handleExport">
-            <download-outlined />
-            导出
-          </a-button>
+          <a-dropdown>
+            <a-button>
+              <download-outlined />
+              导出
+            </a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item key="json" @click="handleExportJson">
+                  导出为 JSON
+                </a-menu-item>
+                <a-menu-item key="html" @click="handleExportHtml">
+                  导出为 HTML（可编辑）
+                </a-menu-item>
+                <a-menu-item key="pdf" @click="handleExportPdf">
+                  导出为 PDF
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
           <a-divider type="vertical" />
           <a-button type="primary" :loading="isSaving" @click="handleSave">
             <save-outlined />

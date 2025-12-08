@@ -2,10 +2,12 @@
 import { ref, onMounted, computed, provide, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { ArrowLeftOutlined, PrinterOutlined } from '@ant-design/icons-vue'
+import { ArrowLeftOutlined, PrinterOutlined, DownloadOutlined, FileTextOutlined, FilePdfOutlined } from '@ant-design/icons-vue'
 import { useTemplateStore } from '@/stores/template'
 import { useDataSourceStore } from '@/stores/datasource'
 import type { Template, Widget } from '@/types'
+import { exportAsHtml, downloadHtml } from '@/utils/exportHtml'
+import { exportAsPdf } from '@/utils/exportPdf'
 import TextWidgetComp from '@/components/widgets/TextWidget.vue'
 import TableWidgetComp from '@/components/widgets/TableWidget.vue'
 import ImageWidgetComp from '@/components/widgets/ImageWidget.vue'
@@ -102,6 +104,69 @@ const renderedWidgets = computed(() => {
   return result
 })
 
+// 将组件分组到不同的页面，支持自动分页
+const pagedWidgets = computed(() => {
+  if (!template.value || renderedWidgets.value.length === 0) {
+    return []
+  }
+
+  const paperHeight = template.value.paperSize.height * MM_TO_PX
+  const pages: Array<Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number }>> = []
+
+  let currentPage: Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number }> = []
+  let currentPageIndex = 0
+  let nextTopInCurrentPage = 0  // 下一个组件在当前页面中应该放置的 top 位置
+
+  for (const item of renderedWidgets.value) {
+    const widget = item.widget
+
+    // 计算组件的实际高度
+    let actualHeight = widget.height
+    if (widget.type === 'table') {
+      const heightOffset = tableHeightOffsets[widget.id] || 0
+      actualHeight += heightOffset
+    }
+
+    // 检查当前页面的剩余空间是否足够
+    const spaceLeft = paperHeight - nextTopInCurrentPage
+
+    // 判断是否需要换页：
+    // 1. 当前页不为空
+    // 2. 剩余空间不足以容纳整个组件
+    // 3. 复杂表格除外（表格可以跨页）
+    const needNewPage = currentPage.length > 0 &&
+                        spaceLeft < actualHeight &&
+                        widget.type !== 'table'
+
+    if (needNewPage) {
+      // 保存当前页
+      pages.push(currentPage)
+
+      // 创建新页
+      currentPage = []
+      currentPageIndex++
+      nextTopInCurrentPage = 0  // 新页面从顶部开始
+    }
+
+    // 将组件添加到当前页
+    currentPage.push({
+      ...item,
+      pageOffset: currentPageIndex * paperHeight,
+      topInPage: nextTopInCurrentPage  // 记录在当前页面中的位置
+    })
+
+    // 更新下一个组件的位置
+    nextTopInCurrentPage += actualHeight
+  }
+
+  // 添加最后一页
+  if (currentPage.length > 0) {
+    pages.push(currentPage)
+  }
+
+  return pages
+})
+
 onMounted(async () => {
   await dataSourceStore.initFromDB()
   const id = route.params.id as string
@@ -125,6 +190,15 @@ onMounted(async () => {
     setTimeout(() => {
       handlePrint()
     }, 500) // 给予足够时间让页面完全渲染
+  }
+
+  // 检查是否需要自动导出 PDF
+  const exportPdf = route.query.exportPdf === 'true'
+  if (exportPdf && template.value) {
+    // 等待 DOM 更新和渲染完成后再触发导出
+    setTimeout(() => {
+      handleExportPdf()
+    }, 800) // 给予足够时间让页面完全渲染
   }
 })
 
@@ -158,33 +232,7 @@ const createHeightChangeHandler = (widgetId: string) => {
   return (height: number) => handleTableHeightChange(widgetId, height)
 }
 
-// 计算组件的累计位置偏移量
-function getAccumulatedOffset(widget: Widget): number {
-  if (!template.value) return 0
-
-  let offset = 0
-
-  // 遍历所有在当前组件上方的组件
-  for (const w of template.value.widgets) {
-    // 跳过当前组件及其之后的组件
-    if (w.id === widget.id) break
-
-    // 只考虑在当前组件上方的组件（y + height <= widget.y）
-    if (w.y + w.height <= widget.y) {
-      // 累加复杂表格的高度偏移
-      if (w.type === 'table') {
-        offset += tableHeightOffsets[w.id] || 0
-      }
-
-      // 累加循环组件的高度扩展
-      offset += loopWidgetExpansions[w.id] || 0
-    }
-  }
-
-  return offset
-}
-
-function getWidgetStyle(widget: Widget, item?: { widget: Widget; dataRowIndex?: number; loopIndex?: number }) {
+function getWidgetStyle(widget: Widget, item?: { widget: Widget; dataRowIndex?: number; loopIndex?: number; pageOffset?: number; topInPage?: number }) {
   const baseStyle = {
     position: 'absolute' as const,
     left: `${widget.x}px`,
@@ -202,16 +250,9 @@ function getWidgetStyle(widget: Widget, item?: { widget: Widget; dataRowIndex?: 
     }
   }
 
-  // 计算累计偏移量并调整 top 位置
-  let offset = getAccumulatedOffset(widget)
-
-  // 如果是循环组件的非首个实例，需要额外偏移
-  if (item?.loopIndex !== undefined && item.loopIndex > 0) {
-    offset += widget.height * item.loopIndex
-  }
-
-  if (offset !== 0) {
-    baseStyle.top = `${widget.y + offset}px`
+  // 使用新的分页逻辑：直接使用 topInPage 位置
+  if (item?.topInPage !== undefined) {
+    baseStyle.top = `${item.topInPage}px`
   }
 
   return baseStyle
@@ -246,6 +287,63 @@ function handlePrint() {
 
   window.print()
 }
+
+function handleExportHtml() {
+  if (!template.value) {
+    message.error('模板数据不存在')
+    return
+  }
+
+  try {
+    const html = exportAsHtml(template.value, dataSourceStore)
+    downloadHtml(html, template.value.name)
+    message.success('HTML 导出成功，可在浏览器中打开并二次编辑')
+  } catch (error) {
+    message.error('HTML 导出失败')
+    console.error(error)
+  }
+}
+
+async function handleExportPdf() {
+  if (!template.value) {
+    message.error('模板数据不存在')
+    return
+  }
+
+  const pageElements = Array.from(document.querySelectorAll('.preview-paper')) as HTMLElement[]
+  if (pageElements.length === 0) {
+    message.error('未找到预览页面元素')
+    return
+  }
+
+  try {
+    message.loading('正在生成 PDF，请稍候...', 0)
+
+    // 如果有多页，使用多页导出
+    if (pageElements.length > 1) {
+      const { exportMultiPagePdf } = await import('@/utils/exportPdf')
+      await exportMultiPagePdf(template.value, pageElements, {
+        filename: template.value.name,
+        quality: 8,
+        scale: 2
+      })
+    } else {
+      // 单页使用原来的导出方式
+      await exportAsPdf(template.value, pageElements[0], {
+        filename: template.value.name,
+        quality: 8,
+        scale: 2
+      })
+    }
+
+    message.destroy()
+    message.success('PDF 导出成功')
+  } catch (error) {
+    message.destroy()
+    message.error('PDF 导出失败')
+    console.error(error)
+  }
+}
 </script>
 
 <template>
@@ -256,28 +354,55 @@ function handlePrint() {
         返回
       </a-button>
       <span v-if="template" class="template-title">{{ template.name }}</span>
-      <a-button type="primary" @click="handlePrint">
-        <printer-outlined />
-        打印
-      </a-button>
+      <a-space>
+        <a-button type="primary" @click="handlePrint">
+          <printer-outlined />
+          打印
+        </a-button>
+        <a-dropdown>
+          <a-button>
+            <download-outlined />
+            导出
+          </a-button>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item key="html" @click="handleExportHtml">
+                <file-text-outlined />
+                导出为 HTML
+              </a-menu-item>
+              <a-menu-item key="pdf" @click="handleExportPdf">
+                <file-pdf-outlined />
+                导出为 PDF
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+      </a-space>
     </div>
     
     <div class="preview-container">
       <a-spin :spinning="isLoading">
-        <div v-if="template" class="preview-paper" :style="paperStyle">
+        <template v-if="template">
           <div
-            v-for="item in renderedWidgets"
-            :key="item.key"
-            :style="getWidgetStyle(item.widget, item)"
+            v-for="(pageWidgets, pageIndex) in pagedWidgets"
+            :key="`page-${pageIndex}`"
+            class="preview-paper"
+            :style="paperStyle"
           >
-            <component
-              :is="getWidgetComponent(item.widget.type)"
-              :widget="item.widget"
-              :data-row-index="item.dataRowIndex"
-              @height-change="createHeightChangeHandler(item.widget.id)"
-            />
+            <div
+              v-for="item in pageWidgets"
+              :key="item.key"
+              :style="getWidgetStyle(item.widget, item)"
+            >
+              <component
+                :is="getWidgetComponent(item.widget.type)"
+                :widget="item.widget"
+                :data-row-index="item.dataRowIndex"
+                @height-change="createHeightChangeHandler(item.widget.id)"
+              />
+            </div>
           </div>
-        </div>
+        </template>
       </a-spin>
     </div>
   </div>
