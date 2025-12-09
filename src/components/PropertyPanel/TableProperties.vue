@@ -363,6 +363,21 @@ function updateCellStyle(styleUpdates: Partial<TableCell>) {
   editorStore.updateWidget(props.widget.id, { cells: newCells })
 }
 
+// 处理颜色输入变化的辅助函数
+function handleCellColorChange(e: Event) {
+  const value = (e.target as HTMLInputElement)?.value
+  if (value !== undefined) {
+    updateCellStyle({ color: value })
+  }
+}
+
+function handleCellBgColorChange(e: Event) {
+  const value = (e.target as HTMLInputElement)?.value
+  if (value !== undefined) {
+    updateCellStyle({ backgroundColor: value })
+  }
+}
+
 // 计算选中行/列的当前行高/列宽（像素）
 const selectedRowHeight = computed(() => {
   if (!tableSelection.value) return null
@@ -654,7 +669,7 @@ function updateColWidth(widthPx: number) {
           <a-input
             type="color"
             :value="activeCell?.color || '#000000'"
-            @change="e => updateCellStyle({ color: e.target.value })"
+            @change="handleCellColorChange"
           />
         </a-form-item>
         <a-form-item label="对齐方式">
@@ -671,7 +686,7 @@ function updateColWidth(widthPx: number) {
           <a-input
             type="color"
             :value="activeCell?.backgroundColor || '#ffffff'"
-            @change="e => updateCellStyle({ backgroundColor: e.target.value })"
+            @change="handleCellBgColorChange"
           />
         </a-form-item>
       </a-form>

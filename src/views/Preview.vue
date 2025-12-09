@@ -36,11 +36,83 @@ const MM_TO_PX = 3.78
 
 const paperStyle = computed(() => {
   if (!template.value) return {}
+  const gutterLeft = (template.value.paperSize.gutterLeft || 0) * MM_TO_PX
+  const gutterRight = (template.value.paperSize.gutterRight || 0) * MM_TO_PX
+
   return {
     width: `${template.value.paperSize.width * MM_TO_PX}px`,
-    height: `${template.value.paperSize.height * MM_TO_PX}px`
+    height: `${template.value.paperSize.height * MM_TO_PX}px`,
+    paddingLeft: `${gutterLeft}px`,
+    paddingRight: `${gutterRight}px`,
+    boxSizing: 'border-box' as const
   }
 })
+
+// 装订线样式
+const gutterStyle = computed(() => {
+  if (!template.value) return { left: {}, right: {} }
+  const gutterLeft = (template.value.paperSize.gutterLeft || 0) * MM_TO_PX
+  const gutterRight = (template.value.paperSize.gutterRight || 0) * MM_TO_PX
+
+  return {
+    left: {
+      position: 'absolute' as const,
+      left: 0,
+      top: 0,
+      width: `${gutterLeft}px`,
+      height: '100%',
+      background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent 5px)',
+      pointerEvents: 'none' as const,
+      zIndex: 1
+    },
+    right: {
+      position: 'absolute' as const,
+      right: 0,
+      top: 0,
+      width: `${gutterRight}px`,
+      height: '100%',
+      background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent 5px)',
+      pointerEvents: 'none' as const,
+      zIndex: 1
+    }
+  }
+})
+
+// 页眉页脚内容
+const headerText = computed(() => template.value?.paperSize.header || '')
+const footerText = computed(() => template.value?.paperSize.footer || '')
+
+// 水印配置
+const watermark = computed(() => template.value?.paperSize.watermark)
+
+// 计算复杂表格的实际渲染行数
+function getComplexTableActualRows(widget: any): number {
+  if (widget.type !== 'table' || widget.tableMode !== 'complex') {
+    return widget.rows || 0
+  }
+
+  const columnBindings = widget.columnBindings || {}
+  const bindingKeys = Object.keys(columnBindings)
+  const headerRows = widget.headerRows || 0
+  const bodyRowCount = Math.max(widget.rows - headerRows, 0)
+
+  if (bindingKeys.length === 0) {
+    return widget.rows
+  }
+
+  let maxLen = 0
+  bindingKeys.forEach((key: string) => {
+    const binding = columnBindings[Number(key)]
+    const data = dataSourceStore.getColumnData(binding)
+    if (data.length > maxLen) maxLen = data.length
+  })
+
+  if (!maxLen) {
+    return widget.rows
+  }
+
+  return Math.max(maxLen + headerRows, bodyRowCount + headerRows)
+}
 
 // 计算需要渲染的组件列表（包含循环的组件）
 const renderedWidgets = computed(() => {
@@ -111,9 +183,9 @@ const pagedWidgets = computed(() => {
   }
 
   const paperHeight = template.value.paperSize.height * MM_TO_PX
-  const pages: Array<Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number }>> = []
+  const pages: Array<Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }>> = []
 
-  let currentPage: Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number }> = []
+  let currentPage: Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }> = []
   let currentPageIndex = 0
   let nextTopInCurrentPage = 0  // 下一个组件在当前页面中应该放置的 top 位置
 
@@ -137,11 +209,10 @@ const pagedWidgets = computed(() => {
     // 1. 全局强制分页：每个组件独占一页（除了当前页为空）
     // 2. 组件强制分页：该组件独占一页（除了当前页为空）
     // 3. 常规逻辑：剩余空间不足以容纳整个组件，且当前页不为空
-    // 4. 复杂表格除外（表格可以跨页）
     const needNewPage = currentPage.length > 0 && (
       globalForce || // 全局强制分页
       widget.forcePageBreak || // 组件强制分页
-      (spaceLeft < actualHeight && widget.type !== 'table') // 空间不足
+      (spaceLeft < actualHeight && widget.type !== 'table') // 空间不足（非表格）
     )
 
     if (needNewPage) {
@@ -154,11 +225,86 @@ const pagedWidgets = computed(() => {
       nextTopInCurrentPage = 0  // 新页面从顶部开始
     }
 
+    // 处理复杂表格的跨页分割
+    if (widget.type === 'table' && widget.tableMode === 'complex' && actualHeight > paperHeight) {
+      // 复杂表格高度超过一页，需要跨页分割
+      const tableWidget = widget as any
+      const actualRows = getComplexTableActualRows(tableWidget)
+      const headerRows = tableWidget.headerRows || 0
+
+      if (actualRows > headerRows) {
+        // 计算每行的平均高度
+        const rowHeight = actualHeight / actualRows
+
+        // 如果当前页有其他内容，先保存当前页
+        if (currentPage.length > 0) {
+          pages.push(currentPage)
+          currentPage = []
+          currentPageIndex++
+          nextTopInCurrentPage = 0
+        }
+
+        // 分割表格到多个页面
+        let currentRow = 0
+
+        while (currentRow < actualRows) {
+          // 计算当前页可以容纳的行数
+          const maxRowsInPage = Math.floor(paperHeight / rowHeight)
+
+          // 确保每页至少包含表头
+          if (maxRowsInPage <= headerRows) {
+            // 页面太小，无法容纳表头，强制放入
+            currentPage.push({
+              ...item,
+              key: currentRow === 0 ? item.key : `${item.key}-page-${currentPageIndex}`,
+              pageOffset: currentPageIndex * paperHeight,
+              topInPage: 0,
+              tableStartRow: currentRow,
+              tableEndRow: Math.min(currentRow + maxRowsInPage - 1, actualRows - 1)
+            })
+
+            currentRow += maxRowsInPage
+          } else {
+            // 正常情况：包含表头和数据行
+            const endRow = Math.min(currentRow + maxRowsInPage - 1, actualRows - 1)
+
+            currentPage.push({
+              ...item,
+              key: currentRow === 0 ? item.key : `${item.key}-page-${currentPageIndex}`,
+              pageOffset: currentPageIndex * paperHeight,
+              topInPage: 0,
+              tableStartRow: currentRow,
+              tableEndRow: endRow
+            })
+
+            currentRow = endRow + 1
+          }
+
+          // 保存当前页并准备下一页
+          pages.push(currentPage)
+          currentPage = []
+          currentPageIndex++
+          nextTopInCurrentPage = 0
+        }
+
+        continue
+      }
+    }
+
+    // 处理复杂表格在当前页放不下的情况（但总高度不超过一页）
+    if (widget.type === 'table' && widget.tableMode === 'complex' && actualHeight > spaceLeft && currentPage.length > 0) {
+      // 保存当前页，表格放到新页
+      pages.push(currentPage)
+      currentPage = []
+      currentPageIndex++
+      nextTopInCurrentPage = 0
+    }
+
     // 将组件添加到当前页
     currentPage.push({
       ...item,
       pageOffset: currentPageIndex * paperHeight,
-      topInPage: nextTopInCurrentPage  // 记录在当前页面中的位置
+      topInPage: nextTopInCurrentPage
     })
 
     // 更新下一个组件的位置
@@ -403,6 +549,35 @@ async function handleExportPdf() {
             class="preview-paper"
             :style="paperStyle"
           >
+            <!-- 左装订线 -->
+            <div v-if="template.paperSize.gutterLeft" :style="gutterStyle.left" class="gutter-area"></div>
+
+            <!-- 右装订线 -->
+            <div v-if="template.paperSize.gutterRight" :style="gutterStyle.right" class="gutter-area"></div>
+
+            <!-- 页眉 -->
+            <div v-if="headerText" class="page-header">{{ headerText }}</div>
+
+            <!-- 页脚 -->
+            <div v-if="footerText" class="page-footer">{{ footerText }}</div>
+
+            <!-- 水印 -->
+            <div v-if="watermark && watermark.text" class="watermark-container">
+              <div
+                v-for="i in 20"
+                :key="i"
+                class="watermark-text"
+                :style="{
+                  color: watermark.color,
+                  opacity: watermark.opacity,
+                  transform: `rotate(${watermark.angle}deg)`,
+                  fontSize: `${watermark.fontSize}px`
+                }"
+              >
+                {{ watermark.text }}
+              </div>
+            </div>
+
             <div
               v-for="item in pageWidgets"
               :key="item.key"
@@ -412,6 +587,8 @@ async function handleExportPdf() {
                 :is="getWidgetComponent(item.widget.type)"
                 :widget="item.widget"
                 :data-row-index="item.dataRowIndex"
+                :start-row="item.tableStartRow"
+                :end-row="item.tableEndRow"
                 @height-change="createHeightChangeHandler(item.widget.id)"
               />
             </div>
@@ -468,6 +645,62 @@ async function handleExportPdf() {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   position: relative;
   margin-bottom: 20px;
+}
+
+.gutter-area {
+  border-right: 1px dashed #ccc;
+}
+
+.page-header {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  pointer-events: none;
+  z-index: 0;
+  white-space: nowrap;
+}
+
+.page-footer {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  pointer-events: none;
+  z-index: 0;
+  white-space: nowrap;
+}
+
+.watermark-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 20px;
+  padding: 40px;
+}
+
+.watermark-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  white-space: nowrap;
+  user-select: none;
+  transform-origin: center;
 }
 
 @media print {

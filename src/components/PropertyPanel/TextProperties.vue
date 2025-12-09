@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useDataSourceStore } from '@/stores/datasource'
-import type { TextWidget } from '@/types'
+import type { TextWidget, BorderStyle } from '@/types'
 
 const props = defineProps<{
   widget: TextWidget
@@ -32,6 +32,13 @@ const textAligns = [
   { label: '右对齐', value: 'right' }
 ]
 
+const borderStyles = [
+  { label: '无', value: 'none' },
+  { label: '实线', value: 'solid' },
+  { label: '虚线', value: 'dashed' },
+  { label: '点线', value: 'dotted' }
+]
+
 // 计算可选的数据行选项
 const rowIndexOptions = computed(() => {
   if (!props.widget.dataSource) return []
@@ -44,7 +51,37 @@ const rowIndexOptions = computed(() => {
 })
 
 function update(key: keyof TextWidget, value: any) {
+  // 防止 undefined 或 null 值破坏组件数据
+  if (value === undefined) return
   editorStore.updateWidget(props.widget.id, { [key]: value })
+}
+
+function updateBorder(position: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft', key: keyof BorderStyle, value: any) {
+  if (value === undefined) return
+  const currentBorder = props.widget[position] || { width: 1, color: '#000000', style: 'solid' }
+  update(position, { ...currentBorder, [key]: value })
+}
+
+// 处理输入框变化的辅助函数
+function handleInputChange(key: keyof TextWidget, e: Event) {
+  const value = (e.target as HTMLInputElement)?.value
+  if (value !== undefined) {
+    update(key, value)
+  }
+}
+
+function handleColorChange(key: keyof TextWidget, e: Event) {
+  const value = (e.target as HTMLInputElement)?.value
+  if (value !== undefined) {
+    update(key, value)
+  }
+}
+
+function handleBorderColorChange(position: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft', e: Event) {
+  const value = (e.target as HTMLInputElement)?.value
+  if (value !== undefined) {
+    updateBorder(position, 'color', value)
+  }
 }
 </script>
 
@@ -52,10 +89,19 @@ function update(key: keyof TextWidget, value: any) {
   <a-divider orientation="left" style="font-size: 12px">文本属性</a-divider>
 
   <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
-    <a-form-item label="内容">
+    <a-form-item label="标题">
+      <a-input
+        :value="widget.title || ''"
+        @change="e => handleInputChange('title', e)"
+        placeholder="固定标题（可选）"
+      />
+    </a-form-item>
+
+    <a-form-item label="数据内容">
       <a-input
         :value="widget.content"
-        @change="e => update('content', e.target.value)"
+        @change="e => handleInputChange('content', e)"
+        placeholder="数据内容"
       />
     </a-form-item>
 
@@ -86,7 +132,7 @@ function update(key: keyof TextWidget, value: any) {
     </a-form-item>
 
     <a-form-item label="颜色">
-      <a-input type="color" :value="widget.color" @change="e => update('color', e.target.value)" />
+      <a-input type="color" :value="widget.color" @change="e => handleColorChange('color', e)" />
     </a-form-item>
 
     <a-form-item label="对齐">
@@ -96,6 +142,8 @@ function update(key: keyof TextWidget, value: any) {
         </a-select-option>
       </a-select>
     </a-form-item>
+
+    <a-divider orientation="left" style="font-size: 12px">数据绑定</a-divider>
 
     <a-form-item label="数据源">
       <a-select
@@ -120,6 +168,128 @@ function update(key: keyof TextWidget, value: any) {
           {{ option.label }}
         </a-select-option>
       </a-select>
+    </a-form-item>
+
+    <a-divider orientation="left" style="font-size: 12px">边框设置</a-divider>
+
+    <!-- 上边框 -->
+    <a-form-item label="上边框样式">
+      <a-select
+        :value="widget.borderTop?.style || 'none'"
+        @change="v => updateBorder('borderTop', 'style', v)"
+      >
+        <a-select-option v-for="s in borderStyles" :key="s.value" :value="s.value">
+          {{ s.label }}
+        </a-select-option>
+      </a-select>
+    </a-form-item>
+
+    <a-form-item v-if="widget.borderTop && widget.borderTop.style !== 'none'" label="上边框宽度">
+      <a-input-number
+        :value="widget.borderTop.width"
+        @change="v => updateBorder('borderTop', 'width', v)"
+        :min="1"
+        :max="10"
+        style="width: 100%"
+      />
+    </a-form-item>
+
+    <a-form-item v-if="widget.borderTop && widget.borderTop.style !== 'none'" label="上边框颜色">
+      <a-input
+        type="color"
+        :value="widget.borderTop.color"
+        @change="e => handleBorderColorChange('borderTop', e)"
+      />
+    </a-form-item>
+
+    <!-- 右边框 -->
+    <a-form-item label="右边框样式">
+      <a-select
+        :value="widget.borderRight?.style || 'none'"
+        @change="v => updateBorder('borderRight', 'style', v)"
+      >
+        <a-select-option v-for="s in borderStyles" :key="s.value" :value="s.value">
+          {{ s.label }}
+        </a-select-option>
+      </a-select>
+    </a-form-item>
+
+    <a-form-item v-if="widget.borderRight && widget.borderRight.style !== 'none'" label="右边框宽度">
+      <a-input-number
+        :value="widget.borderRight.width"
+        @change="v => updateBorder('borderRight', 'width', v)"
+        :min="1"
+        :max="10"
+        style="width: 100%"
+      />
+    </a-form-item>
+
+    <a-form-item v-if="widget.borderRight && widget.borderRight.style !== 'none'" label="右边框颜色">
+      <a-input
+        type="color"
+        :value="widget.borderRight.color"
+        @change="e => handleBorderColorChange('borderRight', e)"
+      />
+    </a-form-item>
+
+    <!-- 下边框 -->
+    <a-form-item label="下边框样式">
+      <a-select
+        :value="widget.borderBottom?.style || 'none'"
+        @change="v => updateBorder('borderBottom', 'style', v)"
+      >
+        <a-select-option v-for="s in borderStyles" :key="s.value" :value="s.value">
+          {{ s.label }}
+        </a-select-option>
+      </a-select>
+    </a-form-item>
+
+    <a-form-item v-if="widget.borderBottom && widget.borderBottom.style !== 'none'" label="下边框宽度">
+      <a-input-number
+        :value="widget.borderBottom.width"
+        @change="v => updateBorder('borderBottom', 'width', v)"
+        :min="1"
+        :max="10"
+        style="width: 100%"
+      />
+    </a-form-item>
+
+    <a-form-item v-if="widget.borderBottom && widget.borderBottom.style !== 'none'" label="下边框颜色">
+      <a-input
+        type="color"
+        :value="widget.borderBottom.color"
+        @change="e => handleBorderColorChange('borderBottom', e)"
+      />
+    </a-form-item>
+
+    <!-- 左边框 -->
+    <a-form-item label="左边框样式">
+      <a-select
+        :value="widget.borderLeft?.style || 'none'"
+        @change="v => updateBorder('borderLeft', 'style', v)"
+      >
+        <a-select-option v-for="s in borderStyles" :key="s.value" :value="s.value">
+          {{ s.label }}
+        </a-select-option>
+      </a-select>
+    </a-form-item>
+
+    <a-form-item v-if="widget.borderLeft && widget.borderLeft.style !== 'none'" label="左边框宽度">
+      <a-input-number
+        :value="widget.borderLeft.width"
+        @change="v => updateBorder('borderLeft', 'width', v)"
+        :min="1"
+        :max="10"
+        style="width: 100%"
+      />
+    </a-form-item>
+
+    <a-form-item v-if="widget.borderLeft && widget.borderLeft.style !== 'none'" label="左边框颜色">
+      <a-input
+        type="color"
+        :value="widget.borderLeft.color"
+        @change="e => handleBorderColorChange('borderLeft', e)"
+      />
     </a-form-item>
 
     <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>

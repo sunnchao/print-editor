@@ -5,12 +5,15 @@ import { useDataSourceStore } from '@/stores/datasource'
 import type { TableWidget } from '@/types'
 import { cloneDeep } from 'lodash-es'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   widget: TableWidget
   dataRowIndex?: number  // 数据行索引（用于循环渲染）
   startRow?: number      // 开始行索引（用于跨页分割表格）
   endRow?: number        // 结束行索引（用于跨页分割表格）
-}>()
+}>(), {
+  startRow: undefined,
+  endRow: undefined
+})
 
 const emit = defineEmits<{
   heightChange: [actualHeight: number]
@@ -147,7 +150,9 @@ const renderRows = computed(() => {
     headerRows: headerRowCount.value,
     dataSourceName: dataSourceStore.currentDataSource?.fileName,
     dataSourceLength: dataSourceStore.currentDataSource?.data?.length,
-    isHeaderHidden: isHeaderHidden.value
+    isHeaderHidden: isHeaderHidden.value,
+    startRow: props.startRow,
+    endRow: props.endRow
   })
 
   // 检查缓存是否有效
@@ -161,6 +166,18 @@ const renderRows = computed(() => {
     rows = rows.slice(headerRowCount.value)
   }
 
+  // 如果指定了 startRow 和 endRow，进行跨页分割
+  if (props.startRow !== undefined && props.endRow !== undefined && isComplexTable.value) {
+    const headerRows = headerRowCount.value
+
+    // startRow 和 endRow 是基于完整表格的行索引
+    // 我们需要始终包含表头，然后加上指定范围的行
+    const headerRowsData = rows.slice(0, headerRows)
+    const dataRowsInRange = rows.slice(props.startRow, props.endRow + 1)
+
+    rows = [...headerRowsData, ...dataRowsInRange]
+  }
+
   // 更新缓存
   previewRowsCache.value = rows
   previewCacheKey.value = cacheKey
@@ -171,6 +188,18 @@ const renderRows = computed(() => {
 const renderRowFractions = computed(() => {
   const fractions: number[] = []
   let total = 0
+
+  // 如果是跨页分割的表格，使用统一的行高度
+  if (props.startRow !== undefined && props.endRow !== undefined && isComplexTable.value) {
+    const rowCount = renderRows.value.length
+    const uniformFraction = rowCount > 0 ? 1 / rowCount : 0
+    for (let i = 0; i < rowCount; i++) {
+      fractions[i] = uniformFraction
+    }
+    return fractions
+  }
+
+  // 正常情况：使用原始的行高度配置
   renderRows.value.forEach((_row, renderIndex) => {
     const actualIndex = getActualRowIndex(renderIndex)
     const fraction = normalizedRowHeights.value[actualIndex] ?? defaultRowHeight.value

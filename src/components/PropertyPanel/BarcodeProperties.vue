@@ -30,7 +30,15 @@ const rowIndexOptions = computed(() => {
 })
 
 function update(key: keyof BarcodeWidget, value: any) {
+  if (value === undefined) return
   editorStore.updateWidget(props.widget.id, { [key]: value })
+}
+
+function handleInputChange(e: Event) {
+  const value = (e.target as HTMLInputElement)?.value
+  if (value !== undefined) {
+    update('value', value)
+  }
 }
 </script>
 
@@ -41,7 +49,7 @@ function update(key: keyof BarcodeWidget, value: any) {
     <a-form-item label="内容">
       <a-input
         :value="widget.value"
-        @change="e => update('value', e.target.value)"
+        @change="handleInputChange"
       />
     </a-form-item>
 

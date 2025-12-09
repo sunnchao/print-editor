@@ -26,7 +26,8 @@ watch(() => props.widget, (newContent) => {
   deep: true
 })
 
-const displayContent = computed(() => {
+// 显示的数据内容（不包括标题）
+const displayData = computed(() => {
   if (props.widget.dataSource) {
     // 使用传入的 dataRowIndex，如果没有则使用 widget 上的 dataRowIndex，都没有则默认为 0
     const rowIndex = props.dataRowIndex ?? (typeof props.widget.dataRowIndex === 'number' ? props.widget.dataRowIndex : 0)
@@ -38,12 +39,28 @@ const displayContent = computed(() => {
   return props.widget.content
 })
 
+// 完整显示内容（标题 + 数据）
+const displayContent = computed(() => {
+  if (props.widget.title) {
+    // 如果有标题，组合显示标题和数据
+    const data = displayData.value || ''
+    return data ? `${props.widget.title}${data}` : props.widget.title
+  }
+  return displayData.value
+})
+
 const bindingKey = computed(() => {
   if (!isPreview.value && props.widget.dataSource) {
     return props.widget.dataSource
   }
   return null
 })
+
+// 构建边框样式
+function getBorderStyle(border?: { width: number; color: string; style: string }) {
+  if (!border || border.style === 'none') return 'none'
+  return `${border.width}px ${border.style} ${border.color}`
+}
 
 const textStyle = computed(() => ({
   fontSize: `${props.widget.fontSize}px`,
@@ -57,7 +74,13 @@ const textStyle = computed(() => ({
   alignItems: 'center',
   justifyContent: props.widget.textAlign === 'center' ? 'center' :
                   props.widget.textAlign === 'right' ? 'flex-end' : 'flex-start',
-  overflow: 'hidden'
+  overflow: 'hidden',
+  boxSizing: 'border-box' as const,
+  // 四边边框
+  borderTop: getBorderStyle(props.widget.borderTop),
+  borderRight: getBorderStyle(props.widget.borderRight),
+  borderBottom: getBorderStyle(props.widget.borderBottom),
+  borderLeft: getBorderStyle(props.widget.borderLeft)
 }))
 
 function onDoubleClick() {
@@ -90,7 +113,10 @@ function onKeydown(e: KeyboardEvent) {
       @blur="onBlur"
       @keydown="onKeydown"
     />
-    <span v-else-if="bindingKey" class="binding-tag">[绑定:{{ bindingKey }}]</span>
+    <template v-else-if="bindingKey">
+      <span v-if="widget.title">{{ widget.title }}：</span>
+      <span class="binding-tag">[绑定:{{ bindingKey }}]</span>
+    </template>
     <span v-else>{{ displayContent }}</span>
   </div>
 </template>

@@ -20,6 +20,17 @@ const RULER_EXTENSION = 200 // 刻度尺延伸长度（像素）
 const paperWidth = computed(() => editorStore.paperSize.width * MM_TO_PX)
 const paperHeight = computed(() => editorStore.paperSize.height * MM_TO_PX)
 
+// 装订线宽度（像素）
+const gutterLeftPx = computed(() => (editorStore.paperSize.gutterLeft || 0) * MM_TO_PX)
+const gutterRightPx = computed(() => (editorStore.paperSize.gutterRight || 0) * MM_TO_PX)
+
+// 页眉页脚内容
+const headerText = computed(() => editorStore.paperSize.header || '')
+const footerText = computed(() => editorStore.paperSize.footer || '')
+
+// 水印配置
+const watermark = computed(() => editorStore.paperSize.watermark)
+
 // 刻度尺的总长度（纸张 + 左侧偏移 + 右侧延伸）
 const rulerWidth = computed(() => paperWidth.value + PAPER_OFFSET + RULER_EXTENSION)
 const rulerHeight = computed(() => paperHeight.value + PAPER_OFFSET + RULER_EXTENSION)
@@ -30,7 +41,34 @@ const paperStyle = computed(() => ({
   transform: `scale(${editorStore.scale})`,
   position: 'absolute' as const,
   left: `${PAPER_OFFSET}px`,
-  top: `${PAPER_OFFSET}px`
+  top: `${PAPER_OFFSET}px`,
+  paddingLeft: `${gutterLeftPx.value}px`,
+  paddingRight: `${gutterRightPx.value}px`,
+  boxSizing: 'border-box' as const
+}))
+
+// 装订线样式
+const gutterStyle = computed(() => ({
+  left: {
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    width: `${gutterLeftPx.value}px`,
+    height: '100%',
+    background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent 5px)',
+    pointerEvents: 'none' as const,
+    zIndex: 1
+  },
+  right: {
+    position: 'absolute' as const,
+    right: 0,
+    top: 0,
+    width: `${gutterRightPx.value}px`,
+    height: '100%',
+    background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent 5px)',
+    pointerEvents: 'none' as const,
+    zIndex: 1
+  }
 }))
 
 const horizontalRulerMarks = computed(() => {
@@ -131,6 +169,7 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
         fontWeight: 'normal',
         color: '#000000',
         textAlign: 'left'
+        // title, borderTop, borderRight, borderBottom, borderLeft 是可选的，不需要默认值
       } as Omit<TextWidget, 'id' | 'zIndex'>)
       break
     case "table":
@@ -368,26 +407,55 @@ onUnmounted(() => {
             @drop="onDrop"
             @dragover="onDragOver"
           >
-          <WidgetWrapper
-            v-for="widget in editorStore.widgets"
-            :key="widget.id"
-            :widget="widget"
-            @contextmenu="onContextMenu($event, widget)"
-          />
+            <!-- 左装订线 -->
+            <div v-if="gutterLeftPx > 0" :style="gutterStyle.left" class="gutter-area"></div>
 
-          <!-- 对齐线 -->
-          <div
-            v-for="(line, index) in editorStore.snapLines"
-            :key="index"
-            class="snap-line"
-            :class="line.type"
-            :style="{
-              left: line.type === 'vertical' ? `${line.position}px` : 0,
-              top: line.type === 'horizontal' ? `${line.position}px` : 0,
-              width: line.type === 'vertical' ? '1px' : '100%',
-              height: line.type === 'horizontal' ? '1px' : '100%'
-            }"
-          ></div>
+            <!-- 右装订线 -->
+            <div v-if="gutterRightPx > 0" :style="gutterStyle.right" class="gutter-area"></div>
+
+            <!-- 页眉 -->
+            <div v-if="headerText" class="page-header">{{ headerText }}</div>
+
+            <!-- 页脚 -->
+            <div v-if="footerText" class="page-footer">{{ footerText }}</div>
+
+            <!-- 水印 -->
+            <div v-if="watermark && watermark.text" class="watermark-container">
+              <div
+                v-for="i in 20"
+                :key="i"
+                class="watermark-text"
+                :style="{
+                  color: watermark.color,
+                  opacity: watermark.opacity,
+                  transform: `rotate(${watermark.angle}deg)`,
+                  fontSize: `${watermark.fontSize}px`
+                }"
+              >
+                {{ watermark.text }}
+              </div>
+            </div>
+
+            <WidgetWrapper
+              v-for="widget in editorStore.widgets"
+              :key="widget.id"
+              :widget="widget"
+              @contextmenu="onContextMenu($event, widget)"
+            />
+
+            <!-- 对齐线 -->
+            <div
+              v-for="(line, index) in editorStore.snapLines"
+              :key="index"
+              class="snap-line"
+              :class="line.type"
+              :style="{
+                left: line.type === 'vertical' ? `${line.position}px` : 0,
+                top: line.type === 'horizontal' ? `${line.position}px` : 0,
+                width: line.type === 'vertical' ? '1px' : '100%',
+                height: line.type === 'horizontal' ? '1px' : '100%'
+              }"
+            ></div>
           </div>
         </div>
       </div>
@@ -544,6 +612,11 @@ onUnmounted(() => {
 
 .canvas-paper {
   background: white;
+  /* 田字格背景：每5mm一格 (5mm = 18.9px) */
+  background-image:
+    linear-gradient(to right, #e8e8e8 1px, transparent 1px),
+    linear-gradient(to bottom, #e8e8e8 1px, transparent 1px);
+  background-size: 18.9px 18.9px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   position: absolute;
   transform-origin: top left;
@@ -574,5 +647,61 @@ onUnmounted(() => {
   color: #666;
   min-width: 40px;
   text-align: center;
+}
+
+.gutter-area {
+  border-right: 1px dashed #ccc;
+}
+
+.page-header {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  pointer-events: none;
+  z-index: 0;
+  white-space: nowrap;
+}
+
+.page-footer {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  pointer-events: none;
+  z-index: 0;
+  white-space: nowrap;
+}
+
+.watermark-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 20px;
+  padding: 40px;
+}
+
+.watermark-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  white-space: nowrap;
+  user-select: none;
+  transform-origin: center;
 }
 </style>

@@ -12,9 +12,16 @@ export interface WidgetBase {
   forcePageBreak?: boolean // 是否强制分页（此组件独占一页）
 }
 
+export interface BorderStyle {
+  width: number
+  color: string
+  style: 'solid' | 'dashed' | 'dotted' | 'none'
+}
+
 export interface TextWidget extends WidgetBase {
   type: 'text'
-  content: string
+  title?: string // 固定标题文字
+  content: string // 数据内容
   fontSize: number
   fontFamily: string
   fontWeight: string
@@ -22,6 +29,11 @@ export interface TextWidget extends WidgetBase {
   textAlign: 'left' | 'center' | 'right'
   dataSource?: string // Excel 列绑定
   dataRowIndex?: number | 'all' // 数据行选择：'all' 表示所有行，数字表示具体行索引
+  // 四边边框设置
+  borderTop?: BorderStyle
+  borderRight?: BorderStyle
+  borderBottom?: BorderStyle
+  borderLeft?: BorderStyle
 }
 
 export interface ImageWidget extends WidgetBase {
@@ -122,6 +134,20 @@ export interface PaperSize {
   name: string
   width: number
   height: number
+  // 装订线宽度（mm）
+  gutterLeft?: number
+  gutterRight?: number
+  // 页眉页脚内容
+  header?: string
+  footer?: string
+  // 水印设置
+  watermark?: {
+    text: string
+    color: string
+    opacity: number // 0-1
+    angle: number // 旋转角度 -180 到 180
+    fontSize: number // 字体大小
+  }
 }
 
 export const PAPER_SIZES: PaperSize[] = [

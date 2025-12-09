@@ -145,6 +145,85 @@ function importTemplate(info: UploadChangeParam) {
   }
 }
 
+// 处理装订线变化
+function handleGutterChange(key: 'gutterLeft' | 'gutterRight', value: number | null) {
+  if (value === null || value === undefined) return
+  editorStore.setPaperSize({
+    ...editorStore.paperSize,
+    [key]: value
+  })
+}
+
+// 处理页眉变化
+function handleHeaderChange(e: Event) {
+  const value = (e.target as HTMLInputElement)?.value
+  if (value !== undefined) {
+    editorStore.setPaperSize({
+      ...editorStore.paperSize,
+      header: value
+    })
+  }
+}
+
+// 处理页脚变化
+function handleFooterChange(e: Event) {
+  const value = (e.target as HTMLInputElement)?.value
+  if (value !== undefined) {
+    editorStore.setPaperSize({
+      ...editorStore.paperSize,
+      footer: value
+    })
+  }
+}
+
+// 处理水印变化
+function handleWatermarkChange(key: 'text' | 'opacity' | 'angle' | 'fontSize', value: any) {
+  if (value === undefined) return
+
+  const currentWatermark = editorStore.paperSize.watermark || {
+    text: '',
+    color: '#000000',
+    opacity: 0.1,
+    angle: -45,
+    fontSize: 48
+  }
+
+  // 如果是文本变化，需要从事件中提取值
+  if (key === 'text' && typeof value === 'object' && value.target) {
+    value = (value.target as HTMLInputElement)?.value || ''
+  }
+
+  editorStore.setPaperSize({
+    ...editorStore.paperSize,
+    watermark: {
+      ...currentWatermark,
+      [key]: value
+    }
+  })
+}
+
+// 处理水印颜色变化
+function handleWatermarkColorChange(e: Event) {
+  const value = (e.target as HTMLInputElement)?.value
+  if (value !== undefined) {
+    const currentWatermark = editorStore.paperSize.watermark || {
+      text: '',
+      color: '#000000',
+      opacity: 0.1,
+      angle: -45,
+      fontSize: 48
+    }
+
+    editorStore.setPaperSize({
+      ...editorStore.paperSize,
+      watermark: {
+        ...currentWatermark,
+        color: value
+      }
+    })
+  }
+}
+
 function print() {
   // 在打印前动态设置画布大小
   const { width, height } = editorStore.paperSize
@@ -265,7 +344,7 @@ function print() {
         </div>
       </a-tab-pane>
       
-      <a-tab-pane key="page" tab="页面">
+      <a-tab-pane key="page" tab="画布">
         <div class="panel-content">
           <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
             <a-form-item label="画布大小">
@@ -334,6 +413,101 @@ function print() {
                 style="margin-bottom: 16px"
               />
             </template>
+
+            <a-divider orientation="left" style="font-size: 12px">装订线设置</a-divider>
+
+            <a-form-item label="左装订线 (mm)">
+              <a-input-number
+                :value="editorStore.paperSize.gutterLeft || 0"
+                @change="(v: number | null) => handleGutterChange('gutterLeft', v)"
+                :min="0"
+                :max="50"
+                :step="1"
+                style="width: 100%"
+                placeholder="左侧装订线宽度"
+              />
+            </a-form-item>
+
+            <a-form-item label="右装订线 (mm)">
+              <a-input-number
+                :value="editorStore.paperSize.gutterRight || 0"
+                @change="(v: number | null) => handleGutterChange('gutterRight', v)"
+                :min="0"
+                :max="50"
+                :step="1"
+                style="width: 100%"
+                placeholder="右侧装订线宽度"
+              />
+            </a-form-item>
+
+            <a-divider orientation="left" style="font-size: 12px">页眉页脚</a-divider>
+
+            <a-form-item label="页眉内容">
+              <a-input
+                :value="editorStore.paperSize.header || ''"
+                @change="handleHeaderChange"
+                placeholder="输入页眉文字"
+              />
+            </a-form-item>
+
+            <a-form-item label="页脚内容">
+              <a-input
+                :value="editorStore.paperSize.footer || ''"
+                @change="handleFooterChange"
+                placeholder="输入页脚文字"
+              />
+            </a-form-item>
+
+            <a-divider orientation="left" style="font-size: 12px">水印设置</a-divider>
+
+            <a-form-item label="水印文字">
+              <a-input
+                :value="editorStore.paperSize.watermark?.text || ''"
+                @change="handleWatermarkChange('text', $event)"
+                placeholder="输入水印文字"
+              />
+            </a-form-item>
+
+            <a-form-item label="水印颜色">
+              <a-input
+                type="color"
+                :value="editorStore.paperSize.watermark?.color || '#000000'"
+                @change="handleWatermarkColorChange"
+              />
+            </a-form-item>
+
+            <a-form-item label="透明度">
+              <a-slider
+                :value="(editorStore.paperSize.watermark?.opacity ?? 0.1) * 100"
+                :min="0"
+                :max="100"
+                :step="5"
+                @change="(v: number) => handleWatermarkChange('opacity', v / 100)"
+                :tooltip-formatter="(v: number) => `${v}%`"
+              />
+            </a-form-item>
+
+            <a-form-item label="旋转角度">
+              <a-slider
+                :value="editorStore.paperSize.watermark?.angle ?? -45"
+                :min="-180"
+                :max="180"
+                :step="15"
+                @change="(v: number) => handleWatermarkChange('angle', v)"
+                :tooltip-formatter="(v: number) => `${v}°`"
+              />
+            </a-form-item>
+
+            <a-form-item label="字体大小">
+              <a-input-number
+                :value="editorStore.paperSize.watermark?.fontSize ?? 12"
+                @change="(v: number | null) => v !== null && handleWatermarkChange('fontSize', v)"
+                :min="12"
+                :max="200"
+                :step="4"
+                style="width: 100%"
+              />
+            </a-form-item>
 
             <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>
 
