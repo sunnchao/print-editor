@@ -6,6 +6,7 @@ import { ArrowLeftOutlined, PrinterOutlined, DownloadOutlined, FileTextOutlined,
 import { useTemplateStore } from '@/stores/template'
 import { useDataSourceStore } from '@/stores/datasource'
 import type { Template, Widget } from '@/types'
+import { MM_TO_PX } from '@/types'
 import { exportAsHtml, downloadHtml } from '@/utils/exportHtml'
 import { exportAsPdf } from '@/utils/exportPdf'
 import TextWidgetComp from '@/components/widgets/TextWidget.vue'
@@ -31,8 +32,6 @@ const tableHeightOffsets = reactive<Record<string, number>>({})
 const loopWidgetExpansions = reactive<Record<string, number>>({})
 
 provide('renderMode', 'preview')
-
-const MM_TO_PX = 3.78
 
 const paperStyle = computed(() => {
   if (!template.value) return {}
@@ -84,6 +83,54 @@ const footerText = computed(() => template.value?.paperSize.footer || '')
 
 // 水印配置
 const watermark = computed(() => template.value?.paperSize.watermark)
+
+// ========== 批量打印模式相关 ==========
+
+/**
+ * 判断是否启用了批量打印模式
+ * 需要同时满足：启用开关 + 选择了数据源 + 数据源存在
+ */
+const isBatchMode = computed(() => {
+  if (!template.value?.batchPrint?.enabled) return false
+  const fileName = template.value.batchPrint.dataSourceFile
+  if (!fileName) return false
+  const ds = dataSourceStore.dataSources.find(d => d.fileName === fileName)
+  return ds && ds.columns.length > 0 && ds.columns[0].data.length > 0
+})
+
+/**
+ * 获取批量打印的数据行索引数组
+ * 例如: [0, 1, 2, 3, 4] 表示打印第 1-5 条数据
+ */
+const batchDataRows = computed(() => {
+  if (!isBatchMode.value || !template.value?.batchPrint) return []
+  
+  const fileName = template.value.batchPrint.dataSourceFile!
+  const ds = dataSourceStore.dataSources.find(d => d.fileName === fileName)
+  if (!ds || ds.columns.length === 0) return []
+  
+  const totalRows = ds.columns[0].data.length
+  const { printRange, rangeStart, rangeEnd } = template.value.batchPrint
+  
+  // 根据打印范围生成行索引数组
+  if (printRange === 'range' && rangeStart !== undefined && rangeEnd !== undefined) {
+    const start = Math.max(0, rangeStart)
+    const end = Math.min(totalRows - 1, rangeEnd)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
+  
+  // 全部打印
+  return Array.from({ length: totalRows }, (_, i) => i)
+})
+
+/**
+ * 批量打印模式下，设置当前数据源（确保组件能正确读取数据）
+ */
+const ensureBatchDataSource = () => {
+  if (isBatchMode.value && template.value?.batchPrint?.dataSourceFile) {
+    dataSourceStore.setCurrentDataSource(template.value.batchPrint.dataSourceFile)
+  }
+}
 
 // 计算复杂表格的实际渲染行数
 function getComplexTableActualRows(widget: any): number {
@@ -178,11 +225,45 @@ const renderedWidgets = computed(() => {
 
 // 将组件分组到不同的页面，支持自动分页
 const pagedWidgets = computed(() => {
-  if (!template.value || renderedWidgets.value.length === 0) {
+  if (!template.value) {
     return []
   }
 
   const paperHeight = template.value.paperSize.height * MM_TO_PX
+  
+  // ========== 批量打印模式：每个数据行生成一个完整页面 ==========
+  if (isBatchMode.value && batchDataRows.value.length > 0) {
+    // 确保数据源已设置
+    ensureBatchDataSource()
+    
+    const batchPages: Array<Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }>> = []
+    
+    // 遍历每个数据行，为其生成一个完整页面
+    for (const rowIndex of batchDataRows.value) {
+      const pageWidgets: Array<{ widget: Widget; dataRowIndex: number; key: string; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }> = []
+      
+      // 将模板中的所有组件复制到当前页面，并绑定到当前数据行
+      for (const widget of template.value.widgets) {
+        pageWidgets.push({
+          widget,
+          dataRowIndex: rowIndex,  // 关键：传递当前数据行索引
+          key: `${widget.id}-batch-${rowIndex}`,
+          pageOffset: batchPages.length * paperHeight,
+          topInPage: widget.y  // 使用组件原始位置
+        })
+      }
+      
+      batchPages.push(pageWidgets)
+    }
+    
+    return batchPages
+  }
+  
+  // ========== 常规模式：使用原有分页逻辑 ==========
+  if (renderedWidgets.value.length === 0) {
+    return []
+  }
+
   const pages: Array<Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }>> = []
 
   let currentPage: Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }> = []
@@ -434,26 +515,27 @@ const createHeightChangeHandler = (widgetId: string) => {
 }
 
 function getWidgetStyle(widget: Widget, item?: { widget: Widget; dataRowIndex?: number; loopIndex?: number; pageOffset?: number; topInPage?: number }) {
+  // 组件存储的是毫米，渲染时转换为像素
   const baseStyle = {
     position: 'absolute' as const,
-    left: `${widget.x}px`,
-    top: `${widget.y}px`,
-    width: `${widget.width}px`,
-    height: `${widget.height}px`,
+    left: `${widget.x * MM_TO_PX}px`,
+    top: `${widget.y * MM_TO_PX}px`,
+    width: `${widget.width * MM_TO_PX}px`,
+    height: `${widget.height * MM_TO_PX}px`,
     zIndex: widget.zIndex
   }
 
-  // 如果是复杂表格，应用实际高度
+  // 如果是复杂表格，应用实际高度（毫米转像素）
   if (widget.type === 'table') {
     const actualHeight = tableHeightOffsets[widget.id]
     if (actualHeight !== undefined) {
-      baseStyle.height = `${widget.height + actualHeight}px`
+      baseStyle.height = `${(widget.height + actualHeight) * MM_TO_PX}px`
     }
   }
 
-  // 使用新的分页逻辑：直接使用 topInPage 位置
+  // 使用新的分页逻辑：topInPage 是毫米，转换为像素
   if (item?.topInPage !== undefined) {
-    baseStyle.top = `${item.topInPage}px`
+    baseStyle.top = `${item.topInPage * MM_TO_PX}px`
   }
 
   return baseStyle

@@ -35,6 +35,38 @@ const propertyComponent = computed(() => {
   return components[editorStore.selectedWidget.type]
 })
 
+// ========== 批量打印相关计算属性 ==========
+
+/**
+ * 获取当前选中数据源的总行数
+ */
+const batchPrintTotalRows = computed(() => {
+  const fileName = editorStore.batchPrint.dataSourceFile
+  if (!fileName) return 0
+  const ds = dataSourceStore.dataSources.find(d => d.fileName === fileName)
+  if (!ds || ds.columns.length === 0) return 0
+  return ds.columns[0].data.length
+})
+
+/**
+ * 计算将生成的面单数量
+ * 根据打印范围配置决定生成多少张
+ */
+const batchPrintPageCount = computed(() => {
+  if (!editorStore.batchPrint.enabled) return 0
+  const total = batchPrintTotalRows.value
+  if (total === 0) return 0
+  
+  if (editorStore.batchPrint.printRange === 'all') {
+    return total
+  }
+  
+  // 指定范围模式
+  const start = editorStore.batchPrint.rangeStart ?? 0
+  const end = editorStore.batchPrint.rangeEnd ?? (total - 1)
+  return Math.max(0, end - start + 1)
+})
+
 function handlePaperSizeChange(name: string) {
   const paperSize = PAPER_SIZES.find((p: any) => p.name === name)
   if (paperSize) {
@@ -508,6 +540,87 @@ function print() {
                 style="width: 100%"
               />
             </a-form-item>
+
+            <!-- 批量打印设置：用于将模板与数据源结合，生成 N 份打印内容 -->
+            <a-divider orientation="left" style="font-size: 12px">批量打印</a-divider>
+
+            <a-form-item label="启用批量打印">
+              <a-switch
+                :checked="editorStore.batchPrint.enabled"
+                @change="(v: boolean) => editorStore.setBatchPrint({ enabled: v })"
+              />
+            </a-form-item>
+
+            <!-- 批量打印详细设置，仅在启用时显示 -->
+            <template v-if="editorStore.batchPrint.enabled">
+              <a-form-item label="数据源">
+                <a-select
+                  :value="editorStore.batchPrint.dataSourceFile"
+                  @change="(v: string) => editorStore.setBatchPrint({ dataSourceFile: v })"
+                  placeholder="选择数据源"
+                  style="width: 100%"
+                >
+                  <a-select-option
+                    v-for="ds in dataSourceStore.dataSources"
+                    :key="ds.fileName"
+                    :value="ds.fileName"
+                  >
+                    {{ ds.fileName }} ({{ ds.columns[0]?.data.length || 0 }} 条)
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+
+              <a-form-item label="打印范围">
+                <a-radio-group
+                  :value="editorStore.batchPrint.printRange"
+                  @change="(e: any) => editorStore.setBatchPrint({ printRange: e.target.value })"
+                >
+                  <a-radio value="all">全部</a-radio>
+                  <a-radio value="range">指定范围</a-radio>
+                </a-radio-group>
+              </a-form-item>
+
+              <!-- 指定范围时显示起止行输入 -->
+              <template v-if="editorStore.batchPrint.printRange === 'range'">
+                <a-form-item label="起始行">
+                  <a-input-number
+                    :value="(editorStore.batchPrint.rangeStart ?? 0) + 1"
+                    @change="(v: number | null) => v !== null && editorStore.setBatchPrint({ rangeStart: v - 1 })"
+                    :min="1"
+                    :max="batchPrintTotalRows"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+                <a-form-item label="结束行">
+                  <a-input-number
+                    :value="(editorStore.batchPrint.rangeEnd ?? batchPrintTotalRows - 1) + 1"
+                    @change="(v: number | null) => v !== null && editorStore.setBatchPrint({ rangeEnd: v - 1 })"
+                    :min="(editorStore.batchPrint.rangeStart ?? 0) + 1"
+                    :max="batchPrintTotalRows"
+                    style="width: 100%"
+                  />
+                </a-form-item>
+              </template>
+
+              <!-- 显示将生成的面单数量 -->
+              <a-alert
+                v-if="batchPrintPageCount > 0"
+                type="info"
+                show-icon
+                style="margin-bottom: 16px"
+              >
+                <template #message>
+                  将生成 <strong>{{ batchPrintPageCount }}</strong> 张面单
+                </template>
+              </a-alert>
+              <a-alert
+                v-else
+                type="warning"
+                message="请先上传数据源并选择"
+                show-icon
+                style="margin-bottom: 16px"
+              />
+            </template>
 
             <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>
 

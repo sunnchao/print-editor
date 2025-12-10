@@ -53,6 +53,12 @@ onMounted(async () => {
       if (template.globalForcePageBreak !== undefined) {
         editorStore.setGlobalForcePageBreak(template.globalForcePageBreak)
       }
+      // 加载批量打印配置
+      if (template.batchPrint) {
+        editorStore.setBatchPrint(template.batchPrint)
+      } else {
+        editorStore.resetBatchPrint()
+      }
     } else {
       message.error('模板不存在')
       router.push('/')
@@ -60,6 +66,7 @@ onMounted(async () => {
   } else {
     // 新建模板
     editorStore.clearWidgets()
+    editorStore.resetBatchPrint()  // 重置批量打印配置
   }
 
   // 添加键盘事件监听
@@ -102,6 +109,7 @@ async function handleSave() {
         template.widgets = editorStore.widgets
         template.paperSize = editorStore.paperSize
         template.globalForcePageBreak = editorStore.globalForcePageBreak
+        template.batchPrint = editorStore.batchPrint  // 保存批量打印配置
         await templateStore.updateTemplate(template)
         message.success('保存成功')
       }
@@ -111,6 +119,7 @@ async function handleSave() {
       template.widgets = editorStore.widgets
       template.paperSize = editorStore.paperSize
       template.globalForcePageBreak = editorStore.globalForcePageBreak
+      template.batchPrint = editorStore.batchPrint  // 保存批量打印配置
       await templateStore.updateTemplate(template)
       templateId.value = template.id
       router.replace(`/editor/${template.id}`)

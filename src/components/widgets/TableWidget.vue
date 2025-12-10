@@ -400,12 +400,15 @@ function getCellDisplayValue(renderRowIndex: number, col: number, cell: any) {
     const headerOffset = isHeaderHidden.value ? 0 : headerRowCount.value
     const dataRowIndex = Math.max(renderRowIndex - headerOffset, 0)
     if (isSimpleTable.value) {
-      return getClampedColumnValue(bindingKey, 0)
+      // 简单表格：优先使用传入的 props.dataRowIndex（批量打印模式），否则使用 0
+      const rowIdx = props.dataRowIndex ?? 0
+      return getClampedColumnValue(bindingKey, rowIdx)
     }
     if (isAutoFillTable.value) {
       return getClampedColumnValue(bindingKey, dataRowIndex)
     }
-    return getClampedColumnValue(bindingKey, 0)
+    // 默认情况：优先使用传入的 props.dataRowIndex
+    return getClampedColumnValue(bindingKey, props.dataRowIndex ?? 0)
   }
 
   // 编辑模式

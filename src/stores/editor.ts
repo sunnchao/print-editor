@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Widget, PaperSize, SnapLine, TableSelection, TableWidget, TableCell } from '@/types'
+import type { Widget, PaperSize, SnapLine, TableSelection, TableWidget, TableCell, BatchPrintConfig } from '@/types'
 import { PAPER_SIZES } from '@/types'
 import { cloneDeep } from 'lodash-es'
 
@@ -153,6 +153,13 @@ export const useEditorStore = defineStore('editor', () => {
   const paperSize = ref<PaperSize>(PAPER_SIZES[0])
   const scale = ref(1)
   const globalForcePageBreak = ref(false) // 全局强制分页设置
+  
+  // 批量打印配置：用于将模板与数据源结合，生成 N 份打印内容
+  const batchPrint = ref<BatchPrintConfig>({
+    enabled: false,
+    printRange: 'all'
+  })
+  
   const history = ref<Widget[][]>([])
   const historyIndex = ref(-1)
   const clipboard = ref<Widget | null>(null)
@@ -291,6 +298,24 @@ export const useEditorStore = defineStore('editor', () => {
 
   function setGlobalForcePageBreak(value: boolean) {
     globalForcePageBreak.value = value
+  }
+
+  /**
+   * 设置批量打印配置
+   * @param config 批量打印配置（部分更新）
+   */
+  function setBatchPrint(config: Partial<BatchPrintConfig>) {
+    batchPrint.value = { ...batchPrint.value, ...config }
+  }
+
+  /**
+   * 重置批量打印配置为默认值
+   */
+  function resetBatchPrint() {
+    batchPrint.value = {
+      enabled: false,
+      printRange: 'all'
+    }
   }
 
   function exportTemplate(): string {
@@ -604,6 +629,7 @@ export const useEditorStore = defineStore('editor', () => {
     paperSize,
     scale,
     globalForcePageBreak,
+    batchPrint,           // 批量打印配置
     clipboard,
     addWidget,
     updateWidget,
@@ -618,6 +644,8 @@ export const useEditorStore = defineStore('editor', () => {
     setPaperSize,
     setScale,
     setGlobalForcePageBreak,
+    setBatchPrint,        // 设置批量打印配置
+    resetBatchPrint,      // 重置批量打印配置
     exportTemplate,
     importTemplate,
     loadWidgets,

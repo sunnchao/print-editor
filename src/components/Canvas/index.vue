@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import type { Widget, TextWidget, TableWidget, ImageWidget, LineWidget, RectWidget, BarcodeWidget, QRCodeWidget } from '@/types'
+import { MM_TO_PX } from '@/types'
 import WidgetWrapper from './WidgetWrapper.vue'
 import ContextMenu from './ContextMenu.vue'
 import { ZoomInOutlined, ZoomOutOutlined } from '@ant-design/icons-vue'
@@ -12,8 +13,6 @@ const canvasRef = ref<HTMLDivElement | null>(null)
 const contextMenuVisible = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const contextMenuWidgetId = ref<string | null>(null)
-
-const MM_TO_PX = 3.78
 const PAPER_OFFSET = 40 // 纸张距离0刻度线的偏移量（像素）
 const RULER_EXTENSION = 200 // 刻度尺延伸长度（像素）
 
@@ -139,9 +138,11 @@ function onDrop(e: DragEvent) {
   if (!widgetType || !canvasRef.value) return
 
   const rect = canvasRef.value.getBoundingClientRect()
-  // 考虑纸张的偏移量和缩放
-  const x = (e.clientX - rect.left) / editorStore.scale
-  const y = (e.clientY - rect.top) / editorStore.scale
+  // 考虑纸张的偏移量和缩放，并转换为毫米
+  const xPx = (e.clientX - rect.left) / editorStore.scale
+  const yPx = (e.clientY - rect.top) / editorStore.scale
+  const x = xPx / MM_TO_PX  // 转换为毫米
+  const y = yPx / MM_TO_PX  // 转换为毫米
 
   const tableMode = e.dataTransfer?.getData("tableMode")
   const normalizedMode = tableMode === "simple" || tableMode === "complex" ? tableMode : undefined
@@ -153,6 +154,7 @@ function onDragOver(e: DragEvent) {
   e.preventDefault()
 }
 
+// 创建组件时，x, y, width, height 单位都是毫米
 function createWidget(type: string, x: number, y: number, options?: { tableMode?: "simple" | "complex" }) {
   const baseWidget = { x, y }
   
@@ -161,8 +163,8 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
       editorStore.addWidget({
         ...baseWidget,
         type: 'text',
-        width: 120,
-        height: 30,
+        width: 30,   // 30mm
+        height: 8,   // 8mm
         content: '双击编辑文本',
         fontSize: 14,
         fontFamily: 'Arial',
@@ -188,8 +190,8 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
       editorStore.addWidget({
         ...baseWidget,
         type: "table",
-        width: 300,
-        height: 150,
+        width: 80,   // 80mm
+        height: 40,  // 40mm
         rows: totalRows,
         cols,
         cells,
@@ -214,8 +216,8 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
       editorStore.addWidget({
         ...baseWidget,
         type: 'image',
-        width: 100,
-        height: 100,
+        width: 25,   // 25mm
+        height: 25,  // 25mm
         src: '',
         fit: 'contain'
       } as Omit<ImageWidget, 'id' | 'zIndex'>)
@@ -224,8 +226,8 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
       editorStore.addWidget({
         ...baseWidget,
         type: 'line',
-        width: 100,
-        height: 2,
+        width: 25,   // 25mm
+        height: 0.5, // 0.5mm
         direction: 'horizontal',
         lineWidth: 1,
         lineColor: '#000000',
@@ -236,8 +238,8 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
       editorStore.addWidget({
         ...baseWidget,
         type: 'rect',
-        width: 100,
-        height: 80,
+        width: 25,   // 25mm
+        height: 20,  // 20mm
         borderWidth: 1,
         borderColor: '#000000',
         borderStyle: 'solid',
@@ -249,8 +251,8 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
       editorStore.addWidget({
         ...baseWidget,
         type: 'barcode',
-        width: 150,
-        height: 60,
+        width: 40,   // 40mm
+        height: 15,  // 15mm
         value: '123456789',
         format: 'CODE128'
       } as Omit<BarcodeWidget, 'id' | 'zIndex'>)
@@ -259,8 +261,8 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
       editorStore.addWidget({
         ...baseWidget,
         type: 'qrcode',
-        width: 80,
-        height: 80,
+        width: 20,   // 20mm
+        height: 20,  // 20mm
         value: 'https://example.com'
       } as Omit<QRCodeWidget, 'id' | 'zIndex'>)
       break
@@ -582,7 +584,7 @@ onUnmounted(() => {
 .canvas-area {
   overflow: auto;
   background: #f0f2f5;
-  padding: 20px;
+  padding: 0;
   position: relative;
 }
 
