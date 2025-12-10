@@ -39,14 +39,36 @@ const displayData = computed(() => {
   return props.widget.content
 })
 
+// 是否显示标题（showTitle 默认为 true）
+const shouldShowTitle = computed(() => {
+  return props.widget.title && props.widget.showTitle !== false
+})
+
+// 是否显示数据内容（showContent 默认为 true）
+const shouldShowContent = computed(() => {
+  return props.widget.showContent !== false
+})
+
 // 完整显示内容（标题 + 数据）
 const displayContent = computed(() => {
-  if (props.widget.title) {
-    // 如果有标题，组合显示标题和数据
-    const data = displayData.value || ''
-    return data ? `${props.widget.title}${data}` : props.widget.title
+  const showTitle = shouldShowTitle.value
+  const showContent = shouldShowContent.value
+  const title = props.widget.title || ''
+  const data = displayData.value || ''
+
+  if (showTitle && showContent) {
+    // 都显示
+    return data ? `${title}${data}` : title
+  } else if (showTitle && !showContent) {
+    // 只显示标题
+    return title
+  } else if (!showTitle && showContent) {
+    // 只显示数据
+    return data
+  } else {
+    // 都不显示
+    return ''
   }
-  return displayData.value
 })
 
 const bindingKey = computed(() => {
@@ -114,7 +136,7 @@ function onKeydown(e: KeyboardEvent) {
       @keydown="onKeydown"
     />
     <template v-else-if="bindingKey">
-      <span v-if="widget.title">{{ widget.title }}：</span>
+      <span v-if="shouldShowTitle">{{ widget.title }}：</span>
       <span class="binding-tag">[绑定:{{ bindingKey }}]</span>
     </template>
     <span v-else>{{ displayContent }}</span>

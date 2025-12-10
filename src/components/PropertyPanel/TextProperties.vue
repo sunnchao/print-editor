@@ -97,12 +97,32 @@ function handleBorderColorChange(position: 'borderTop' | 'borderRight' | 'border
       />
     </a-form-item>
 
+    <a-form-item v-if="widget.title" label="显示标题">
+      <a-switch
+        :checked="widget.showTitle !== false"
+        @change="v => update('showTitle', v)"
+      />
+      <div style="font-size: 12px; color: #999; margin-top: 4px">
+        关闭后，标题在编辑和预览模式下均不显示
+      </div>
+    </a-form-item>
+
     <a-form-item label="数据内容">
       <a-input
         :value="widget.content"
         @change="e => handleInputChange('content', e)"
         placeholder="数据内容"
       />
+    </a-form-item>
+
+    <a-form-item label="显示内容">
+      <a-switch
+        :checked="widget.showContent !== false"
+        @change="v => update('showContent', v)"
+      />
+      <div style="font-size: 12px; color: #999; margin-top: 4px">
+        关闭后，数据内容在编辑和预览模式下均不显示
+      </div>
     </a-form-item>
 
     <a-form-item label="字体">

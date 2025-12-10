@@ -28,7 +28,9 @@ export interface BorderStyle {
 export interface TextWidget extends WidgetBase {
   type: 'text'
   title?: string // 固定标题文字
+  showTitle?: boolean // 是否显示标题，默认为 true
   content: string // 数据内容
+  showContent?: boolean // 是否显示数据内容，默认为 true
   fontSize: number
   fontFamily: string
   fontWeight: string
@@ -168,8 +170,8 @@ export const PAPER_SIZES: PaperSize[] = [
   // { name: 'B5', width: 176, height: 250 },
   // { name: 'B6', width: 125, height: 176 },
   // 其他常用尺寸
-//   三联纸：215 x 93
-// 四联纸：215 x 70
+  //   三联纸：215 x 93
+  // 四联纸：215 x 70
   { name: '三联纸', width: 215, height: 93 },
   { name: '四联纸', width: 215, height: 70 },
   // { name: '自定义', width: 210, height: 297 }
