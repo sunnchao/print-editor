@@ -538,29 +538,57 @@ onUnmounted(() => {
   gap: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .ruler-corner {
   background: #e8e8e8;
   border-right: 1px solid #d0d0d0;
   border-bottom: 1px solid #d0d0d0;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+.canvas-wrapper::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.canvas-wrapper::-webkit-scrollbar-track {
+  background: #f0f2f5;
+}
+
+.canvas-wrapper::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+}
+
+.canvas-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .ruler {
   background: #f5f5f5;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .ruler-horizontal {
   height: 20px;
   border-bottom: 1px solid #d0d0d0;
+  position: sticky;
+  top: 0;
+  z-index: 9;
 }
 
 .ruler-vertical {
   width: 20px;
   border-right: 1px solid #d0d0d0;
+  position: sticky;
+  left: 0;
+  z-index: 9;
 }
 
 .ruler-mark {
