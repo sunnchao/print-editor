@@ -698,22 +698,22 @@ function updateColWidth(widthPx: number) {
   <div class="table-cell-panel">
     <template v-if="tableSelection">
       <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
-        <a-form-item label="行高 (px)">
+        <a-form-item label="行高 (mm)">
           <a-input-number
             :value="selectedRowHeight"
             @change="v => updateRowHeight(v)"
-            :min="10"
-            :max="500"
+            :min="3"
+            :max="200"
             style="width: 100%"
           />
           <small class="form-tip">调整第 {{ tableSelection.startRow + 1 }} 行的高度</small>
         </a-form-item>
-        <a-form-item label="列宽 (px)">
+        <a-form-item label="列宽 (mm)">
           <a-input-number
             :value="selectedColWidth"
             @change="v => updateColWidth(v)"
-            :min="10"
-            :max="500"
+            :min="3"
+            :max="200"
             style="width: 100%"
           />
           <small class="form-tip">调整第 {{ tableSelection.startCol + 1 }} 列的宽度</small>

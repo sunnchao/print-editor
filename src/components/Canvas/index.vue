@@ -39,8 +39,8 @@ const paperStyle = computed(() => ({
   height: `${paperHeight.value}px`,
   transform: `scale(${editorStore.scale})`,
   position: 'absolute' as const,
-  left: `${PAPER_OFFSET}px`,
-  top: `${PAPER_OFFSET}px`,
+  // left: `${PAPER_OFFSET}px`,
+  // top: `${PAPER_OFFSET}px`,
   paddingLeft: `${gutterLeftPx.value}px`,
   paddingRight: `${gutterRightPx.value}px`,
   boxSizing: 'border-box' as const

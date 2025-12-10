@@ -290,7 +290,7 @@ function print() {
             <a-divider orientation="left" style="font-size: 12px">基础属性</a-divider>
             
             <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
-              <a-form-item label="X">
+              <a-form-item label="X(mm)">
                 <a-input-number
                   :value="editorStore.selectedWidget.x"
                   @change="(v: number) => editorStore.updateWidget(editorStore.selectedWidget!.id, { x: v })"
@@ -298,7 +298,7 @@ function print() {
                   style="width: 100%"
                 />
               </a-form-item>
-              <a-form-item label="Y">
+              <a-form-item label="Y(mm)">
                 <a-input-number
                   :value="editorStore.selectedWidget.y"
                   @change="(v: number) => editorStore.updateWidget(editorStore.selectedWidget!.id, { y: v })"
@@ -306,7 +306,7 @@ function print() {
                   style="width: 100%"
                 />
               </a-form-item>
-              <a-form-item label="宽度">
+              <a-form-item label="宽度(mm)">
                 <a-input-number
                   :value="editorStore.selectedWidget.width"
                   @change="(v: number) => editorStore.updateWidget(editorStore.selectedWidget!.id, { width: v })"
@@ -314,7 +314,7 @@ function print() {
                   style="width: 100%"
                 />
               </a-form-item>
-              <a-form-item label="高度">
+              <a-form-item label="高度(mm)">
                 <a-input-number
                   :value="editorStore.selectedWidget.height"
                   @change="(v: number) => editorStore.updateWidget(editorStore.selectedWidget!.id, { height: v })"
