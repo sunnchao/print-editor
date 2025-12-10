@@ -137,7 +137,7 @@ function onKeydown(e: KeyboardEvent) {
     />
     <template v-else-if="bindingKey">
       <span v-if="shouldShowTitle">{{ widget.title }}：</span>
-      <span class="binding-tag">[绑定:{{ bindingKey }}]</span>
+      <span v-if="shouldShowContent" class="binding-tag">[绑定:{{ bindingKey }}]</span>
     </template>
     <span v-else>{{ displayContent }}</span>
   </div>
