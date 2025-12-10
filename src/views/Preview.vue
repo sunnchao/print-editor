@@ -198,8 +198,17 @@ const pagedWidgets = computed(() => {
     // 计算组件的实际高度
     let actualHeight = widget.height
     if (widget.type === 'table') {
-      const heightOffset = tableHeightOffsets[widget.id] || 0
-      actualHeight += heightOffset
+      if (widget.tableMode === 'complex') {
+        // 直接计算复杂表格的实际高度，不依赖组件回调
+        const actualRows = getComplexTableActualRows(widget)
+        const originalRows = widget.rows
+        if (originalRows > 0 && actualRows > 0) {
+          actualHeight = widget.height * (actualRows / originalRows)
+        }
+      } else {
+        const heightOffset = tableHeightOffsets[widget.id] || 0
+        actualHeight += heightOffset
+      }
     }
 
     // 检查当前页面的剩余空间是否足够
@@ -225,9 +234,8 @@ const pagedWidgets = computed(() => {
       nextTopInCurrentPage = 0  // 新页面从顶部开始
     }
 
-    // 处理复杂表格的跨页分割
-    if (widget.type === 'table' && widget.tableMode === 'complex' && actualHeight > paperHeight) {
-      // 复杂表格高度超过一页，需要跨页分割
+    // 处理复杂表格的跨页分割（从当前位置开始渲染）
+    if (widget.type === 'table' && widget.tableMode === 'complex' && actualHeight > spaceLeft) {
       const tableWidget = widget as any
       const actualRows = getComplexTableActualRows(tableWidget)
       const headerRows = tableWidget.headerRows || 0
@@ -236,36 +244,74 @@ const pagedWidgets = computed(() => {
         // 计算每行的平均高度
         const rowHeight = actualHeight / actualRows
 
-        // 如果当前页有其他内容，先保存当前页
-        if (currentPage.length > 0) {
+        // 计算当前页剩余空间能容纳多少行（包括表头）
+        const rowsInCurrentPage = Math.floor(spaceLeft / rowHeight)
+
+        // 如果当前页剩余空间至少能放下表头+1行数据，先在当前页渲染部分表格
+        if (rowsInCurrentPage > headerRows) {
+          // 在当前页渲染部分表格
+          const endRowInCurrentPage = rowsInCurrentPage - 1
+
+          currentPage.push({
+            ...item,
+            key: item.key,
+            pageOffset: currentPageIndex * paperHeight,
+            topInPage: nextTopInCurrentPage,
+            tableStartRow: 0,
+            tableEndRow: endRowInCurrentPage
+          })
+
+          // 保存当前页
           pages.push(currentPage)
           currentPage = []
           currentPageIndex++
           nextTopInCurrentPage = 0
-        }
 
-        // 分割表格到多个页面
-        let currentRow = 0
+          // 继续处理剩余的行
+          let currentRow = endRowInCurrentPage + 1
 
-        while (currentRow < actualRows) {
-          // 计算当前页可以容纳的行数
-          const maxRowsInPage = Math.floor(paperHeight / rowHeight)
+          while (currentRow < actualRows) {
+            // 新页面从顶部开始，计算能容纳的行数
+            const maxRowsInPage = Math.floor(paperHeight / rowHeight)
+            const endRow = Math.min(currentRow + maxRowsInPage - 1, actualRows - 1)
 
-          // 确保每页至少包含表头
-          if (maxRowsInPage <= headerRows) {
-            // 页面太小，无法容纳表头，强制放入
             currentPage.push({
               ...item,
-              key: currentRow === 0 ? item.key : `${item.key}-page-${currentPageIndex}`,
+              key: `${item.key}-page-${currentPageIndex}`,
               pageOffset: currentPageIndex * paperHeight,
               topInPage: 0,
               tableStartRow: currentRow,
-              tableEndRow: Math.min(currentRow + maxRowsInPage - 1, actualRows - 1)
+              tableEndRow: endRow
             })
 
-            currentRow += maxRowsInPage
-          } else {
-            // 正常情况：包含表头和数据行
+            currentRow = endRow + 1
+
+            // 如果还有剩余行，保存当前页并准备下一页
+            if (currentRow < actualRows) {
+              pages.push(currentPage)
+              currentPage = []
+              currentPageIndex++
+              nextTopInCurrentPage = 0
+            } else {
+              // 最后一部分表格，更新 nextTopInCurrentPage
+              const lastPartHeight = (endRow - (currentRow - maxRowsInPage) + 1) * rowHeight
+              nextTopInCurrentPage = lastPartHeight
+            }
+          }
+        } else {
+          // 当前页剩余空间太小，保存当前页，整个表格从新页面开始
+          if (currentPage.length > 0) {
+            pages.push(currentPage)
+            currentPage = []
+            currentPageIndex++
+            nextTopInCurrentPage = 0
+          }
+
+          // 分割表格到多个页面
+          let currentRow = 0
+
+          while (currentRow < actualRows) {
+            const maxRowsInPage = Math.floor(paperHeight / rowHeight)
             const endRow = Math.min(currentRow + maxRowsInPage - 1, actualRows - 1)
 
             currentPage.push({
@@ -278,26 +324,21 @@ const pagedWidgets = computed(() => {
             })
 
             currentRow = endRow + 1
-          }
 
-          // 保存当前页并准备下一页
-          pages.push(currentPage)
-          currentPage = []
-          currentPageIndex++
-          nextTopInCurrentPage = 0
+            if (currentRow < actualRows) {
+              pages.push(currentPage)
+              currentPage = []
+              currentPageIndex++
+              nextTopInCurrentPage = 0
+            } else {
+              const lastPartHeight = (endRow - (currentRow - maxRowsInPage) + 1) * rowHeight
+              nextTopInCurrentPage = lastPartHeight
+            }
+          }
         }
 
         continue
       }
-    }
-
-    // 处理复杂表格在当前页放不下的情况（但总高度不超过一页）
-    if (widget.type === 'table' && widget.tableMode === 'complex' && actualHeight > spaceLeft && currentPage.length > 0) {
-      // 保存当前页，表格放到新页
-      pages.push(currentPage)
-      currentPage = []
-      currentPageIndex++
-      nextTopInCurrentPage = 0
     }
 
     // 将组件添加到当前页
