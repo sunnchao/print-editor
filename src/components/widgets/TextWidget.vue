@@ -106,6 +106,8 @@ const textStyle = computed(() => ({
 }))
 
 function onDoubleClick() {
+  // 预览模式下禁止编辑
+  if (isPreview.value) return
   isEditing.value = true
   editContent.value = props.widget.content
 }
@@ -125,7 +127,7 @@ function onKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="text-widget" :style="textStyle" @dblclick="onDoubleClick">
+  <div class="text-widget" :class="{ 'preview-mode': isPreview }" :style="textStyle" @dblclick="onDoubleClick">
     
     <input
       v-if="isEditing"
@@ -145,8 +147,18 @@ function onKeydown(e: KeyboardEvent) {
 
 <style scoped>
 .text-widget {
-  user-select: none;
   word-break: break-word;
+}
+
+/* 编辑模式下禁止选择，预览模式下允许选择文本 */
+.text-widget:not(.preview-mode) {
+  user-select: none;
+  cursor: default;
+}
+
+.text-widget.preview-mode {
+  user-select: text;
+  cursor: text;
 }
 
 .text-input {

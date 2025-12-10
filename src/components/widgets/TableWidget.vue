@@ -467,7 +467,7 @@ const cellStyle = computed(() => (renderRowIndex: number, colIndex: number) => {
     border: `${border.width}px ${border.style} ${border.color}`,
     padding: '4px 8px',
     outline: selected ? '1px solid #1890ff' : 'none',
-    cursor: 'cell'
+    cursor: isPreview.value ? 'default' : 'cell'
   }
 
   // 应用单元格自定义样式
@@ -775,7 +775,7 @@ function shouldRenderCell(renderRow: number, col: number): boolean {
 </script>
 
 <template>
-  <div class="table-container" @mouseup="onMouseUp" @mouseleave="onMouseUp">
+  <div class="table-container" :class="{ 'preview-mode': isPreview }" @mouseup="onMouseUp" @mouseleave="onMouseUp">
     <div
       v-if="!isPreview"
       class="table-drag-handle"
@@ -926,8 +926,18 @@ td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  user-select: none;
   position: relative;
+}
+
+/* 编辑模式下禁止选择文本 */
+.table-container:not(.preview-mode) td {
+  user-select: none;
+}
+
+/* 预览模式下允许选择文本 */
+.table-container.preview-mode td {
+  user-select: text;
+  cursor: default;
 }
 
 .table-container {

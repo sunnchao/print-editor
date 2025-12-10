@@ -288,6 +288,33 @@ function closeContextMenu() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  // 检测事件是否来自可编辑元素（输入框、文本域等）
+  const target = e.target as HTMLElement
+  const isEditableElement = target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.isContentEditable ||
+    target.closest('[contenteditable="true"]')
+
+  // 如果是可编辑元素，不处理复制/粘贴/删除等快捷键，让浏览器原生处理
+  if (isEditableElement) {
+    // 只保留缩放快捷键，其他交给浏览器处理
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault()
+        handleZoomIn()
+      }
+      if (e.key === '-' || e.key === '_') {
+        e.preventDefault()
+        handleZoomOut()
+      }
+      if (e.key === '0') {
+        e.preventDefault()
+        handleZoomReset()
+      }
+    }
+    return
+  }
+
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if (editorStore.selectedWidgetId) {
       editorStore.deleteWidget(editorStore.selectedWidgetId)
