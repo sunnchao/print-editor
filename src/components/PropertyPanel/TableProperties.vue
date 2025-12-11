@@ -258,34 +258,12 @@ function updateTableBorderField(key: 'tableBorderWidth' | 'tableBorderColor' | '
   updateWidgetFields({ [key]: value })
 }
 
-function updateCellBorderField(key: 'cellBorderWidth' | 'cellBorderColor' | 'cellBorderStyle', value: any) {
-  const payload: Partial<TableWidget> = { [key]: value }
-  if (key === 'cellBorderWidth') {
-    payload.borderWidth = value
-  }
-  if (key === 'cellBorderColor') {
-    payload.borderColor = value
-  }
-  if (key === 'cellBorderStyle') {
-    payload.borderStyle = value
-  }
-  updateWidgetFields(payload)
-}
-
 function handleTableBorderWidthChange(value: number | null) {
   updateTableBorderField('tableBorderWidth', typeof value === 'number' ? value : 0)
 }
 
-function handleCellBorderWidthChange(value: number | null) {
-  updateCellBorderField('cellBorderWidth', typeof value === 'number' ? value : 0)
-}
-
 function handleTableBorderStyleChange(value: 'solid' | 'dashed' | 'dotted') {
   updateTableBorderField('tableBorderStyle', value)
-}
-
-function handleCellBorderStyleChange(value: 'solid' | 'dashed' | 'dotted') {
-  updateCellBorderField('cellBorderStyle', value)
 }
 
 function updateRowsCols(bodyRows: number, cols: number) {
@@ -476,17 +454,30 @@ function updateCellSideBorder(side: CellBorderSide, updates: Partial<{ width: nu
   editorStore.updateWidget(props.widget.id, { cells: newCells })
 }
 
-function getCellBorderStyle(side: CellBorderSide) {
-  return activeCell.value?.[side]?.style || 'solid'
-}
+// 单元格边框样式计算属性（响应式）
+const cellBorderTop = computed(() => ({
+  style: activeCell.value?.borderTop?.style || 'solid',
+  width: activeCell.value?.borderTop?.width ?? (props.widget.cellBorderWidth ?? props.widget.borderWidth ?? 1),
+  color: activeCell.value?.borderTop?.color ?? (props.widget.cellBorderColor ?? props.widget.borderColor ?? '#000000')
+}))
 
-function getCellBorderWidth(side: CellBorderSide) {
-  return activeCell.value?.[side]?.width ?? (props.widget.cellBorderWidth ?? props.widget.borderWidth ?? 1)
-}
+const cellBorderRight = computed(() => ({
+  style: activeCell.value?.borderRight?.style || 'solid',
+  width: activeCell.value?.borderRight?.width ?? (props.widget.cellBorderWidth ?? props.widget.borderWidth ?? 1),
+  color: activeCell.value?.borderRight?.color ?? (props.widget.cellBorderColor ?? props.widget.borderColor ?? '#000000')
+}))
 
-function getCellBorderColor(side: CellBorderSide) {
-  return activeCell.value?.[side]?.color ?? (props.widget.cellBorderColor ?? props.widget.borderColor ?? '#000000')
-}
+const cellBorderBottom = computed(() => ({
+  style: activeCell.value?.borderBottom?.style || 'solid',
+  width: activeCell.value?.borderBottom?.width ?? (props.widget.cellBorderWidth ?? props.widget.borderWidth ?? 1),
+  color: activeCell.value?.borderBottom?.color ?? (props.widget.cellBorderColor ?? props.widget.borderColor ?? '#000000')
+}))
+
+const cellBorderLeft = computed(() => ({
+  style: activeCell.value?.borderLeft?.style || 'solid',
+  width: activeCell.value?.borderLeft?.width ?? (props.widget.cellBorderWidth ?? props.widget.borderWidth ?? 1),
+  color: activeCell.value?.borderLeft?.color ?? (props.widget.cellBorderColor ?? props.widget.borderColor ?? '#000000')
+}))
 
 // 计算选中行/列的当前行高/列宽（像素）
 const selectedRowHeight = computed(() => {
@@ -627,91 +618,110 @@ function updateColWidth(widthPx: number) {
       </a-space>
     </a-form-item>
     
-    <a-collapse size="small" style="margin-bottom: 12px">
-      <a-collapse-panel key="tableBorderDetail" header="四边独立设置">
-        <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }" size="small">
-          <a-form-item label="上">
-            <a-space>
-              <a-input-number :value="getTableBorderWidth('tableBorderTop')" @change="(v: number) => updateTableSideBorder('tableBorderTop', { width: v })" :min="0" :max="5" style="width: 50px" />
-              <a-input type="color" :value="getTableBorderColor('tableBorderTop')" @change="(e: Event) => updateTableSideBorder('tableBorderTop', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
-              <a-select :value="getTableBorderStyle('tableBorderTop')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateTableSideBorder('tableBorderTop', { style: v })" style="width: 65px">
-                <a-select-option value="solid">实线</a-select-option>
-                <a-select-option value="dashed">虚线</a-select-option>
-                <a-select-option value="dotted">点线</a-select-option>
-                <a-select-option value="none">无</a-select-option>
-              </a-select>
-            </a-space>
-          </a-form-item>
-          <a-form-item label="右">
-            <a-space>
-              <a-input-number :value="getTableBorderWidth('tableBorderRight')" @change="(v: number) => updateTableSideBorder('tableBorderRight', { width: v })" :min="0" :max="5" style="width: 50px" />
-              <a-input type="color" :value="getTableBorderColor('tableBorderRight')" @change="(e: Event) => updateTableSideBorder('tableBorderRight', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
-              <a-select :value="getTableBorderStyle('tableBorderRight')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateTableSideBorder('tableBorderRight', { style: v })" style="width: 65px">
-                <a-select-option value="solid">实线</a-select-option>
-                <a-select-option value="dashed">虚线</a-select-option>
-                <a-select-option value="dotted">点线</a-select-option>
-                <a-select-option value="none">无</a-select-option>
-              </a-select>
-            </a-space>
-          </a-form-item>
-          <a-form-item label="下">
-            <a-space>
-              <a-input-number :value="getTableBorderWidth('tableBorderBottom')" @change="(v: number) => updateTableSideBorder('tableBorderBottom', { width: v })" :min="0" :max="5" style="width: 50px" />
-              <a-input type="color" :value="getTableBorderColor('tableBorderBottom')" @change="(e: Event) => updateTableSideBorder('tableBorderBottom', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
-              <a-select :value="getTableBorderStyle('tableBorderBottom')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateTableSideBorder('tableBorderBottom', { style: v })" style="width: 65px">
-                <a-select-option value="solid">实线</a-select-option>
-                <a-select-option value="dashed">虚线</a-select-option>
-                <a-select-option value="dotted">点线</a-select-option>
-                <a-select-option value="none">无</a-select-option>
-              </a-select>
-            </a-space>
-          </a-form-item>
-          <a-form-item label="左">
-            <a-space>
-              <a-input-number :value="getTableBorderWidth('tableBorderLeft')" @change="(v: number) => updateTableSideBorder('tableBorderLeft', { width: v })" :min="0" :max="5" style="width: 50px" />
-              <a-input type="color" :value="getTableBorderColor('tableBorderLeft')" @change="(e: Event) => updateTableSideBorder('tableBorderLeft', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
-              <a-select :value="getTableBorderStyle('tableBorderLeft')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateTableSideBorder('tableBorderLeft', { style: v })" style="width: 65px">
-                <a-select-option value="solid">实线</a-select-option>
-                <a-select-option value="dashed">虚线</a-select-option>
-                <a-select-option value="dotted">点线</a-select-option>
-                <a-select-option value="none">无</a-select-option>
-              </a-select>
-            </a-space>
-          </a-form-item>
-        </a-form>
-      </a-collapse-panel>
-    </a-collapse>
+    <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }" size="small">
+      <a-form-item label="上">
+        <a-space>
+          <a-input-number :value="getTableBorderWidth('tableBorderTop')" @change="(v: number) => updateTableSideBorder('tableBorderTop', { width: v })" :min="0" :max="5" style="width: 50px" />
+          <a-input type="color" :value="getTableBorderColor('tableBorderTop')" @change="(e: Event) => updateTableSideBorder('tableBorderTop', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
+          <a-select :value="getTableBorderStyle('tableBorderTop')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateTableSideBorder('tableBorderTop', { style: v })" style="width: 65px">
+            <a-select-option value="solid">实线</a-select-option>
+            <a-select-option value="dashed">虚线</a-select-option>
+            <a-select-option value="dotted">点线</a-select-option>
+            <a-select-option value="none">无</a-select-option>
+          </a-select>
+        </a-space>
+      </a-form-item>
+      <a-form-item label="右">
+        <a-space>
+          <a-input-number :value="getTableBorderWidth('tableBorderRight')" @change="(v: number) => updateTableSideBorder('tableBorderRight', { width: v })" :min="0" :max="5" style="width: 50px" />
+          <a-input type="color" :value="getTableBorderColor('tableBorderRight')" @change="(e: Event) => updateTableSideBorder('tableBorderRight', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
+          <a-select :value="getTableBorderStyle('tableBorderRight')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateTableSideBorder('tableBorderRight', { style: v })" style="width: 65px">
+            <a-select-option value="solid">实线</a-select-option>
+            <a-select-option value="dashed">虚线</a-select-option>
+            <a-select-option value="dotted">点线</a-select-option>
+            <a-select-option value="none">无</a-select-option>
+          </a-select>
+        </a-space>
+      </a-form-item>
+      <a-form-item label="下">
+        <a-space>
+          <a-input-number :value="getTableBorderWidth('tableBorderBottom')" @change="(v: number) => updateTableSideBorder('tableBorderBottom', { width: v })" :min="0" :max="5" style="width: 50px" />
+          <a-input type="color" :value="getTableBorderColor('tableBorderBottom')" @change="(e: Event) => updateTableSideBorder('tableBorderBottom', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
+          <a-select :value="getTableBorderStyle('tableBorderBottom')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateTableSideBorder('tableBorderBottom', { style: v })" style="width: 65px">
+            <a-select-option value="solid">实线</a-select-option>
+            <a-select-option value="dashed">虚线</a-select-option>
+            <a-select-option value="dotted">点线</a-select-option>
+            <a-select-option value="none">无</a-select-option>
+          </a-select>
+        </a-space>
+      </a-form-item>
+      <a-form-item label="左">
+        <a-space>
+          <a-input-number :value="getTableBorderWidth('tableBorderLeft')" @change="(v: number) => updateTableSideBorder('tableBorderLeft', { width: v })" :min="0" :max="5" style="width: 50px" />
+          <a-input type="color" :value="getTableBorderColor('tableBorderLeft')" @change="(e: Event) => updateTableSideBorder('tableBorderLeft', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
+          <a-select :value="getTableBorderStyle('tableBorderLeft')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateTableSideBorder('tableBorderLeft', { style: v })" style="width: 65px">
+            <a-select-option value="solid">实线</a-select-option>
+            <a-select-option value="dashed">虚线</a-select-option>
+            <a-select-option value="dotted">点线</a-select-option>
+            <a-select-option value="none">无</a-select-option>
+          </a-select>
+        </a-space>
+      </a-form-item>
+    </a-form>
 
-    <a-divider orientation="left" style="font-size: 12px">单元格边框（全局）</a-divider>
-    <a-form-item label="统一设置">
-      <a-space>
-        <a-input-number
-          :value="widget.cellBorderWidth ?? widget.borderWidth"
-          @change="handleCellBorderWidthChange"
-          :min="0"
-          :max="5"
-          style="width: 60px"
-          placeholder="宽度"
-        />
-        <a-input
-          type="color"
-          :value="widget.cellBorderColor ?? widget.borderColor"
-          @change="(e: Event) => updateCellBorderField('cellBorderColor', (e.target as HTMLInputElement).value)"
-          style="width: 40px"
-        />
-        <a-select
-          :value="widget.cellBorderStyle ?? widget.borderStyle ?? 'solid'"
-          @change="handleCellBorderStyleChange"
-          style="width: 70px"
-        >
-          <a-select-option v-for="option in borderStyleOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </a-select-option>
-        </a-select>
-      </a-space>
-    </a-form-item>
+    <a-divider orientation="left" style="font-size: 11px; margin: 8px 0">单元格边框</a-divider>
+    <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }" size="small">
+      <a-form-item label="上">
+        <a-space>
+          <a-input-number :value="cellBorderTop.width" @change="(v: number) => updateCellSideBorder('borderTop', { width: v })" :min="0" :max="5" style="width: 50px" />
+          <a-input type="color" :value="cellBorderTop.color" @change="(e: Event) => updateCellSideBorder('borderTop', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
+          <a-select :value="cellBorderTop.style" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateCellSideBorder('borderTop', { style: v })" style="width: 65px">
+            <a-select-option value="solid">实线</a-select-option>
+            <a-select-option value="dashed">虚线</a-select-option>
+            <a-select-option value="dotted">点线</a-select-option>
+            <a-select-option value="none">无</a-select-option>
+          </a-select>
+        </a-space>
+      </a-form-item>
+      <a-form-item label="右">
+        <a-space>
+          <a-input-number :value="cellBorderRight.width" @change="(v: number) => updateCellSideBorder('borderRight', { width: v })" :min="0" :max="5" style="width: 50px" />
+          <a-input type="color" :value="cellBorderRight.color" @change="(e: Event) => updateCellSideBorder('borderRight', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
+          <a-select :value="cellBorderRight.style" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateCellSideBorder('borderRight', { style: v })" style="width: 65px">
+            <a-select-option value="solid">实线</a-select-option>
+            <a-select-option value="dashed">虚线</a-select-option>
+            <a-select-option value="dotted">点线</a-select-option>
+            <a-select-option value="none">无</a-select-option>
+          </a-select>
+        </a-space>
+      </a-form-item>
+      <a-form-item label="下">
+        <a-space>
+          <a-input-number :value="cellBorderBottom.width" @change="(v: number) => updateCellSideBorder('borderBottom', { width: v })" :min="0" :max="5" style="width: 50px" />
+          <a-input type="color" :value="cellBorderBottom.color" @change="(e: Event) => updateCellSideBorder('borderBottom', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
+          <a-select :value="cellBorderBottom.style" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateCellSideBorder('borderBottom', { style: v })" style="width: 65px">
+            <a-select-option value="solid">实线</a-select-option>
+            <a-select-option value="dashed">虚线</a-select-option>
+            <a-select-option value="dotted">点线</a-select-option>
+            <a-select-option value="none">无</a-select-option>
+          </a-select>
+        </a-space>
+      </a-form-item>
+      <a-form-item label="左">
+        <a-space>
+          <a-input-number :value="cellBorderLeft.width" @change="(v: number) => updateCellSideBorder('borderLeft', { width: v })" :min="0" :max="5" style="width: 50px" />
+          <a-input type="color" :value="cellBorderLeft.color" @change="(e: Event) => updateCellSideBorder('borderLeft', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
+          <a-select :value="cellBorderLeft.style" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateCellSideBorder('borderLeft', { style: v })" style="width: 65px">
+            <a-select-option value="solid">实线</a-select-option>
+            <a-select-option value="dashed">虚线</a-select-option>
+            <a-select-option value="dotted">点线</a-select-option>
+            <a-select-option value="none">无</a-select-option>
+          </a-select>
+        </a-space>
+      </a-form-item>
+    </a-form>
   </a-form>
-  
+
   <a-divider orientation="left" style="font-size: 12px">表格操作提示</a-divider>
   <div class="table-ops">
     <div class="table-selection-info">当前选择：{{ selectionSummary }}</div>
@@ -857,61 +867,7 @@ function updateColWidth(widthPx: number) {
           />
         </a-form-item>
         
-        <a-divider orientation="left" style="font-size: 11px; margin: 8px 0">单元格边框</a-divider>
-        <a-collapse size="small">
-          <a-collapse-panel key="cellBorderDetail" header="四边独立设置">
-            <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }" size="small">
-              <a-form-item label="上">
-                <a-space>
-                  <a-input-number :value="getCellBorderWidth('borderTop')" @change="(v: number) => updateCellSideBorder('borderTop', { width: v })" :min="0" :max="5" style="width: 50px" />
-                  <a-input type="color" :value="getCellBorderColor('borderTop')" @change="(e: Event) => updateCellSideBorder('borderTop', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
-                  <a-select :value="getCellBorderStyle('borderTop')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateCellSideBorder('borderTop', { style: v })" style="width: 65px">
-                    <a-select-option value="solid">实线</a-select-option>
-                    <a-select-option value="dashed">虚线</a-select-option>
-                    <a-select-option value="dotted">点线</a-select-option>
-                    <a-select-option value="none">无</a-select-option>
-                  </a-select>
-                </a-space>
-              </a-form-item>
-              <a-form-item label="右">
-                <a-space>
-                  <a-input-number :value="getCellBorderWidth('borderRight')" @change="(v: number) => updateCellSideBorder('borderRight', { width: v })" :min="0" :max="5" style="width: 50px" />
-                  <a-input type="color" :value="getCellBorderColor('borderRight')" @change="(e: Event) => updateCellSideBorder('borderRight', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
-                  <a-select :value="getCellBorderStyle('borderRight')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateCellSideBorder('borderRight', { style: v })" style="width: 65px">
-                    <a-select-option value="solid">实线</a-select-option>
-                    <a-select-option value="dashed">虚线</a-select-option>
-                    <a-select-option value="dotted">点线</a-select-option>
-                    <a-select-option value="none">无</a-select-option>
-                  </a-select>
-                </a-space>
-              </a-form-item>
-              <a-form-item label="下">
-                <a-space>
-                  <a-input-number :value="getCellBorderWidth('borderBottom')" @change="(v: number) => updateCellSideBorder('borderBottom', { width: v })" :min="0" :max="5" style="width: 50px" />
-                  <a-input type="color" :value="getCellBorderColor('borderBottom')" @change="(e: Event) => updateCellSideBorder('borderBottom', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
-                  <a-select :value="getCellBorderStyle('borderBottom')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateCellSideBorder('borderBottom', { style: v })" style="width: 65px">
-                    <a-select-option value="solid">实线</a-select-option>
-                    <a-select-option value="dashed">虚线</a-select-option>
-                    <a-select-option value="dotted">点线</a-select-option>
-                    <a-select-option value="none">无</a-select-option>
-                  </a-select>
-                </a-space>
-              </a-form-item>
-              <a-form-item label="左">
-                <a-space>
-                  <a-input-number :value="getCellBorderWidth('borderLeft')" @change="(v: number) => updateCellSideBorder('borderLeft', { width: v })" :min="0" :max="5" style="width: 50px" />
-                  <a-input type="color" :value="getCellBorderColor('borderLeft')" @change="(e: Event) => updateCellSideBorder('borderLeft', { color: (e.target as HTMLInputElement).value })" style="width: 36px" />
-                  <a-select :value="getCellBorderStyle('borderLeft')" @change="(v: 'solid' | 'dashed' | 'dotted' | 'none') => updateCellSideBorder('borderLeft', { style: v })" style="width: 65px">
-                    <a-select-option value="solid">实线</a-select-option>
-                    <a-select-option value="dashed">虚线</a-select-option>
-                    <a-select-option value="dotted">点线</a-select-option>
-                    <a-select-option value="none">无</a-select-option>
-                  </a-select>
-                </a-space>
-              </a-form-item>
-            </a-form>
-          </a-collapse-panel>
-        </a-collapse>
+
       </a-form>
     </template>
     <p v-else class="table-cell-empty">请选择单元格以编辑样式</p>

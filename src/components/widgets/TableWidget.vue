@@ -144,7 +144,8 @@ const renderRows = computed(() => {
   // 预览模式：使用缓存优化
   const cacheKey = JSON.stringify({
     cells: props.widget.cells.length,
-    cellsHash: props.widget.cells[0]?.[0]?.content, // 简单的哈希检查
+    // 使用更全面的哈希检查，包含单元格内容、样式和边框
+    cellsHash: JSON.stringify(props.widget.cells),
     columnBindings: columnBindings.value,
     headerRows: headerRowCount.value,
     dataSourceName: dataSourceStore.currentDataSource?.fileName,
@@ -345,7 +346,12 @@ function cloneCell(cell: any) {
     fontWeight: cell?.fontWeight,
     color: cell?.color,
     textAlign: cell?.textAlign,
-    backgroundColor: cell?.backgroundColor
+    backgroundColor: cell?.backgroundColor,
+    // 复制单元格边框样式
+    borderTop: cell?.borderTop ? { ...cell.borderTop } : undefined,
+    borderRight: cell?.borderRight ? { ...cell.borderRight } : undefined,
+    borderBottom: cell?.borderBottom ? { ...cell.borderBottom } : undefined,
+    borderLeft: cell?.borderLeft ? { ...cell.borderLeft } : undefined
   }
 }
 
@@ -479,12 +485,16 @@ const cellStyle = computed(() => (renderRowIndex: number, colIndex: number) => {
     : props.widget.cells[actualRowIndex]?.[colIndex]
 
   // 获取单元格边框样式
+  // 优先级：单元格自身设置 > 全局统一设置
   const getCellBorder = (side: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft') => {
+    // 1. 优先使用单元格自身的边框设置
     const sideBorder = cell?.[side]
     if (sideBorder) {
       if (sideBorder.style === 'none') return 'none'
       return `${sideBorder.width}px ${sideBorder.style} ${sideBorder.color}`
     }
+
+    // 2. 使用全局统一设置
     return `${defaultBorder.width}px ${defaultBorder.style} ${defaultBorder.color}`
   }
 

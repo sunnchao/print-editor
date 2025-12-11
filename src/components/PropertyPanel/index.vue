@@ -295,6 +295,7 @@ function print() {
                   :value="editorStore.selectedWidget.x"
                   @change="(v: number) => editorStore.updateWidget(editorStore.selectedWidget!.id, { x: v })"
                   :min="0"
+                  :precision="0"
                   style="width: 100%"
                 />
               </a-form-item>
@@ -303,6 +304,7 @@ function print() {
                   :value="editorStore.selectedWidget.y"
                   @change="(v: number) => editorStore.updateWidget(editorStore.selectedWidget!.id, { y: v })"
                   :min="0"
+                  :precision="0"
                   style="width: 100%"
                 />
               </a-form-item>
@@ -311,6 +313,7 @@ function print() {
                   :value="editorStore.selectedWidget.width"
                   @change="(v: number) => editorStore.updateWidget(editorStore.selectedWidget!.id, { width: v })"
                   :min="10"
+                  :precision="0"
                   style="width: 100%"
                 />
               </a-form-item>
@@ -319,6 +322,7 @@ function print() {
                   :value="editorStore.selectedWidget.height"
                   @change="(v: number) => editorStore.updateWidget(editorStore.selectedWidget!.id, { height: v })"
                   :min="10"
+                  :precision="0"
                   style="width: 100%"
                 />
               </a-form-item>
