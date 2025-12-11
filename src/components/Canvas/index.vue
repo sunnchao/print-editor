@@ -177,7 +177,7 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
     case "table":
       const mode = options?.tableMode === "simple" ? "simple" : "complex"
       const cols = 3
-      const headerRows = mode === "simple" ? 0 : 1
+      const headerRows = 1  // 默认1行表头
       const bodyRows = mode === "complex" ? 1 : 4
       const totalRows = headerRows + bodyRows
       const cells = Array(totalRows).fill(null).map((_, rowIndex) =>
@@ -196,7 +196,7 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
         cols,
         cells,
         headerRows,
-        showHeader: mode !== "simple",
+        showHeader: true,  // 默认显示表头
         tableMode: mode,
         borderWidth: 1,
         borderColor: "#000000",

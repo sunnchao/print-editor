@@ -26,22 +26,37 @@ const table = computed<TableWidget | null>(() => {
   return widget.value as TableWidget
 })
 
+const isComplexMode = computed(() => table.value?.tableMode === 'complex')
+
 const selection = computed(() => (isTable.value ? editorStore.tableSelection : null))
 const hasSelection = computed(() => !!selection.value)
 
 const canMerge = computed(() => {
+  if (isComplexMode.value) return false  // 复杂表格不支持合并
   if (!hasSelection.value || !selection.value) return false
   const { startRow, startCol, endRow, endCol } = selection.value
   return startRow !== endRow || startCol !== endCol
 })
 
 const canSplit = computed(() => {
+  if (isComplexMode.value) return false  // 复杂表格不支持拆分
   if (!hasSelection.value || !selection.value || !table.value) return false
   const { startRow, startCol, endRow, endCol } = selection.value
   if (startRow !== endRow || startCol !== endCol) return false
   
   const cell = table.value.cells[startRow][startCol]
   return (cell.rowSpan || 1) > 1 || (cell.colSpan || 1) > 1
+})
+
+// 复杂表格不支持插入/删除行
+const canInsertRow = computed(() => {
+  if (isComplexMode.value) return false
+  return hasSelection.value
+})
+
+const canDeleteSelectedRow = computed(() => {
+  if (isComplexMode.value) return false
+  return canDeleteRow.value
 })
 
 const selectedRowCount = computed(() => {
@@ -123,7 +138,7 @@ function splitCells() {
 }
 
 function insertRow(position: 'before' | 'after') {
-  if (!selection.value) return
+  if (!selection.value || isComplexMode.value) return
   editorStore.insertTableRow(selection.value.startRow, position)
   emit('close')
 }
@@ -135,7 +150,7 @@ function insertCol(position: 'before' | 'after') {
 }
 
 function deleteRow() {
-  if (!selection.value || !canDeleteRow.value) return
+  if (!selection.value || !canDeleteSelectedRow.value) return
   editorStore.deleteTableRow(selection.value.startRow)
   emit('close')
 }
@@ -178,12 +193,12 @@ onUnmounted(() => {
       <div :class="['context-menu-item', { disabled: !canMerge }]" @click="mergeCells">合并单元格</div>
       <div :class="['context-menu-item', { disabled: !canSplit }]" @click="splitCells">拆分单元格</div>
       <div class="context-menu-divider"></div>
-      <div :class="['context-menu-item', { disabled: !hasSelection }]" @click="insertRow('before')">上方插入行</div>
-      <div :class="['context-menu-item', { disabled: !hasSelection }]" @click="insertRow('after')">下方插入行</div>
+      <div :class="['context-menu-item', { disabled: !canInsertRow }]" @click="insertRow('before')">上方插入行</div>
+      <div :class="['context-menu-item', { disabled: !canInsertRow }]" @click="insertRow('after')">下方插入行</div>
       <div :class="['context-menu-item', { disabled: !hasSelection }]" @click="insertCol('before')">左侧插入列</div>
       <div :class="['context-menu-item', { disabled: !hasSelection }]" @click="insertCol('after')">右侧插入列</div>
       <div class="context-menu-divider"></div>
-      <div :class="['context-menu-item', 'danger', { disabled: !canDeleteRow }]" @click="deleteRow">删除选中行</div>
+      <div :class="['context-menu-item', 'danger', { disabled: !canDeleteSelectedRow }]" @click="deleteRow">删除选中行</div>
       <div :class="['context-menu-item', 'danger', { disabled: !canDeleteCol }]" @click="deleteCol">删除选中列</div>
     </template>
   </div>

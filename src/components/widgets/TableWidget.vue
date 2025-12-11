@@ -113,13 +113,12 @@ const isComplexTable = computed(() => tableMode.value === "complex")
 const hasColumnBindings = computed(() => Object.keys(columnBindings.value).length > 0)
 const isAutoFillTable = computed(() => isComplexTable.value || hasColumnBindings.value)
 const headerRowCount = computed(() => {
-  if (isSimpleTable.value) return 0
   const rows = props.widget.rows
-  const headerRows = props.widget.headerRows
+  const headerRows = props.widget.headerRows ?? 0
   if (rows <= 0) return 0
   return Math.max(0, Math.min(headerRows, rows))
 })
-const isHeaderHidden = computed(() => !isComplexTable.value && props.widget.showHeader === false && headerRowCount.value > 0)
+const isHeaderHidden = computed(() => props.widget.showHeader === false && headerRowCount.value > 0)
 
 const columnResizeState = ref<{ index: number; startX: number; initialWidths: number[] } | null>(null)
 const rowResizeState = ref<{ topIndex: number; bottomIndex: number; startY: number; initialHeights: number[] } | null>(null)
@@ -441,19 +440,36 @@ function getCellBindingKey(renderRowIndex: number, col: number, cell: any) {
   return null
 }
 
-const tableStyle = computed(() => ({
-  width: '100%',
-  height: '100%',
-  borderCollapse: 'collapse' as const,
-  tableLayout: 'fixed' as const,
-  border: `${tableBorder.value.width}px ${tableBorder.value.style} ${tableBorder.value.color}`
-}))
+const tableStyle = computed(() => {
+  const defaultBorder = tableBorder.value
+  
+  // 获取各边边框样式，优先使用独立设置
+  const getBorderStyle = (side: 'tableBorderTop' | 'tableBorderRight' | 'tableBorderBottom' | 'tableBorderLeft') => {
+    const sideBorder = props.widget[side]
+    if (sideBorder) {
+      if (sideBorder.style === 'none') return 'none'
+      return `${sideBorder.width}px ${sideBorder.style} ${sideBorder.color}`
+    }
+    return `${defaultBorder.width}px ${defaultBorder.style} ${defaultBorder.color}`
+  }
+  
+  return {
+    width: '100%',
+    height: '100%',
+    borderCollapse: 'collapse' as const,
+    tableLayout: 'fixed' as const,
+    borderTop: getBorderStyle('tableBorderTop'),
+    borderRight: getBorderStyle('tableBorderRight'),
+    borderBottom: getBorderStyle('tableBorderBottom'),
+    borderLeft: getBorderStyle('tableBorderLeft')
+  }
+})
 
 const cellStyle = computed(() => (renderRowIndex: number, colIndex: number) => {
   const actualRowIndex = getActualRowIndex(renderRowIndex)
   const selected = !isPreview.value && isSelected.value(actualRowIndex, colIndex)
   const isHeaderRow = actualRowIndex < headerRowCount.value
-  const border = cellBorder.value
+  const defaultBorder = cellBorder.value
 
   // 获取单元格数据
   // 在预览模式下，从 renderRows 获取单元格数据（包含循环生成的行）
@@ -462,9 +478,22 @@ const cellStyle = computed(() => (renderRowIndex: number, colIndex: number) => {
     ? renderRows.value[renderRowIndex]?.[colIndex]
     : props.widget.cells[actualRowIndex]?.[colIndex]
 
+  // 获取单元格边框样式
+  const getCellBorder = (side: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft') => {
+    const sideBorder = cell?.[side]
+    if (sideBorder) {
+      if (sideBorder.style === 'none') return 'none'
+      return `${sideBorder.width}px ${sideBorder.style} ${sideBorder.color}`
+    }
+    return `${defaultBorder.width}px ${defaultBorder.style} ${defaultBorder.color}`
+  }
+
   // 基础样式
   const baseStyle: any = {
-    border: `${border.width}px ${border.style} ${border.color}`,
+    borderTop: getCellBorder('borderTop'),
+    borderRight: getCellBorder('borderRight'),
+    borderBottom: getCellBorder('borderBottom'),
+    borderLeft: getCellBorder('borderLeft'),
     padding: '4px 8px',
     outline: selected ? '1px solid #1890ff' : 'none',
     cursor: isPreview.value ? 'default' : 'cell'

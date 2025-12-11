@@ -63,6 +63,11 @@ export interface TableCell {
   color?: string
   textAlign?: 'left' | 'center' | 'right'
   backgroundColor?: string
+  // 单元格边框样式
+  borderTop?: BorderStyle
+  borderRight?: BorderStyle
+  borderBottom?: BorderStyle
+  borderLeft?: BorderStyle
 }
 
 export interface TableWidget extends WidgetBase {
@@ -79,6 +84,11 @@ export interface TableWidget extends WidgetBase {
   tableBorderWidth?: number
   tableBorderColor?: string
   tableBorderStyle?: 'solid' | 'dashed' | 'dotted'
+  // 表格四边边框独立设置
+  tableBorderTop?: BorderStyle
+  tableBorderRight?: BorderStyle
+  tableBorderBottom?: BorderStyle
+  tableBorderLeft?: BorderStyle
   cellBorderWidth?: number
   cellBorderColor?: string
   cellBorderStyle?: 'solid' | 'dashed' | 'dotted'
