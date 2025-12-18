@@ -33,6 +33,18 @@ const loopWidgetExpansions = reactive<Record<string, number>>({})
 
 provide('renderMode', 'preview')
 
+// 页眉页脚高度常量（毫米）
+const HEADER_HEIGHT_MM = 8
+const FOOTER_HEIGHT_MM = 8
+
+// 页眉页脚内容
+const headerText = computed(() => template.value?.paperSize.header || '')
+const footerText = computed(() => template.value?.paperSize.footer || '')
+
+// 页眉页脚高度（像素）
+const headerHeightPx = computed(() => headerText.value ? HEADER_HEIGHT_MM * MM_TO_PX : 0)
+const footerHeightPx = computed(() => footerText.value ? FOOTER_HEIGHT_MM * MM_TO_PX : 0)
+
 const paperStyle = computed(() => {
   if (!template.value) return {}
   const gutterLeft = (template.value.paperSize.gutterLeft || 0) * MM_TO_PX
@@ -43,43 +55,11 @@ const paperStyle = computed(() => {
     height: `${template.value.paperSize.height * MM_TO_PX}px`,
     paddingLeft: `${gutterLeft}px`,
     paddingRight: `${gutterRight}px`,
+    paddingTop: `${headerHeightPx.value}px`,
+    paddingBottom: `${footerHeightPx.value}px`,
     boxSizing: 'border-box' as const
   }
 })
-
-// 装订线样式
-const gutterStyle = computed(() => {
-  if (!template.value) return { left: {}, right: {} }
-  const gutterLeft = (template.value.paperSize.gutterLeft || 0) * MM_TO_PX
-  const gutterRight = (template.value.paperSize.gutterRight || 0) * MM_TO_PX
-
-  return {
-    left: {
-      position: 'absolute' as const,
-      left: 0,
-      top: 0,
-      width: `${gutterLeft}px`,
-      height: '100%',
-      background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent 5px)',
-      pointerEvents: 'none' as const,
-      zIndex: 1
-    },
-    right: {
-      position: 'absolute' as const,
-      right: 0,
-      top: 0,
-      width: `${gutterRight}px`,
-      height: '100%',
-      background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent 5px)',
-      pointerEvents: 'none' as const,
-      zIndex: 1
-    }
-  }
-})
-
-// 页眉页脚内容
-const headerText = computed(() => template.value?.paperSize.header || '')
-const footerText = computed(() => template.value?.paperSize.footer || '')
 
 // 水印配置
 const watermark = computed(() => template.value?.paperSize.watermark)
@@ -162,6 +142,7 @@ function getComplexTableActualRows(widget: any): number {
 }
 
 // 计算需要渲染的组件列表（包含循环的组件）
+// 非批量打印模式下，固定只使用第一条数据
 const renderedWidgets = computed(() => {
   if (!template.value) return []
 
@@ -173,51 +154,29 @@ const renderedWidgets = computed(() => {
   })
 
   for (const widget of template.value.widgets) {
-    // 表格组件不参与循环
+    // 表格组件：非批量打印模式下固定使用第一条数据
     if (widget.type === 'table') {
-      result.push({ widget, key: widget.id })
+      result.push({ 
+        widget, 
+        key: widget.id,
+        dataRowIndex: 0  // 固定使用第一条数据
+      })
       continue
     }
 
     // 检查是否绑定了数据源
     const hasDataSource = 'dataSource' in widget && widget.dataSource
     if (!hasDataSource) {
-      result.push({ widget, key: widget.id })
+      result.push({ widget, key: widget.id, dataRowIndex: 0 })
       continue
     }
 
-    // 获取 dataRowIndex
-    const dataRowIndex = 'dataRowIndex' in widget ? widget.dataRowIndex : 'all'
-
-    // 如果是 'all'，循环所有数据
-    if (dataRowIndex === 'all') {
-      const columnData = dataSourceStore.getColumnData(widget.dataSource!)
-      const loopCount = columnData.length
-
-      // 记录循环扩展的高度（除第一个实例外，其他实例占用的额外高度）
-      if (loopCount > 1) {
-        loopWidgetExpansions[widget.id] = widget.height * (loopCount - 1)
-      }
-
-      for (let i = 0; i < loopCount; i++) {
-        result.push({
-          widget,
-          dataRowIndex: i,
-          key: `${widget.id}-row-${i}`,
-          loopIndex: i
-        })
-      }
-    } else if (typeof dataRowIndex === 'number') {
-      // 如果是具体行索引，只渲染一次
-      result.push({
-        widget,
-        dataRowIndex,
-        key: `${widget.id}-row-${dataRowIndex}`
-      })
-    } else {
-      // 默认情况（未设置 dataRowIndex）
-      result.push({ widget, key: widget.id })
-    }
+    // 非批量打印模式下，固定只使用第一条数据（dataRowIndex = 0）
+    result.push({
+      widget,
+      dataRowIndex: 0,
+      key: `${widget.id}-row-0`
+    })
   }
 
   return result
@@ -230,6 +189,8 @@ const pagedWidgets = computed(() => {
   }
 
   const paperHeight = template.value.paperSize.height * MM_TO_PX
+  // 计算可用内容高度（减去页眉页脚占位）
+  const contentHeight = paperHeight - headerHeightPx.value - footerHeightPx.value
   
   // ========== 批量打印模式：每个数据行生成一个完整页面 ==========
   if (isBatchMode.value && batchDataRows.value.length > 0) {
@@ -249,7 +210,7 @@ const pagedWidgets = computed(() => {
           dataRowIndex: rowIndex,  // 关键：传递当前数据行索引
           key: `${widget.id}-batch-${rowIndex}`,
           pageOffset: batchPages.length * paperHeight,
-          topInPage: widget.y  // 使用组件原始位置
+          topInPage: widget.y  // 使用组件原始位置（padding已处理偏移）
         })
       }
       
@@ -292,8 +253,8 @@ const pagedWidgets = computed(() => {
       }
     }
 
-    // 检查当前页面的剩余空间是否足够
-    const spaceLeft = paperHeight - nextTopInCurrentPage
+    // 检查当前页面的剩余空间是否足够（使用内容区高度）
+    const spaceLeft = contentHeight - nextTopInCurrentPage
 
     // 判断是否需要换页：
     // 1. 全局强制分页：每个组件独占一页（除了当前页为空）
@@ -352,8 +313,8 @@ const pagedWidgets = computed(() => {
           let currentRow = endRowInCurrentPage + 1
 
           while (currentRow < actualRows) {
-            // 新页面从顶部开始，计算能容纳的行数
-            const maxRowsInPage = Math.floor(paperHeight / rowHeight)
+            // 新页面从顶部开始，计算能容纳的行数（使用内容区高度）
+            const maxRowsInPage = Math.floor(contentHeight / rowHeight)
             const endRow = Math.min(currentRow + maxRowsInPage - 1, actualRows - 1)
 
             currentPage.push({
@@ -392,7 +353,7 @@ const pagedWidgets = computed(() => {
           let currentRow = 0
 
           while (currentRow < actualRows) {
-            const maxRowsInPage = Math.floor(paperHeight / rowHeight)
+            const maxRowsInPage = Math.floor(contentHeight / rowHeight)
             const endRow = Math.min(currentRow + maxRowsInPage - 1, actualRows - 1)
 
             currentPage.push({
@@ -672,12 +633,6 @@ async function handleExportPdf() {
             class="preview-paper"
             :style="paperStyle"
           >
-            <!-- 左装订线 -->
-            <div v-if="template.paperSize.gutterLeft" :style="gutterStyle.left" class="gutter-area"></div>
-
-            <!-- 右装订线 -->
-            <div v-if="template.paperSize.gutterRight" :style="gutterStyle.right" class="gutter-area"></div>
-
             <!-- 页眉 -->
             <div v-if="headerText" class="page-header">{{ headerText }}</div>
 
@@ -770,15 +725,15 @@ async function handleExportPdf() {
   margin-bottom: 20px;
 }
 
-.gutter-area {
-  border-right: 1px dashed #ccc;
-}
-
 .page-header {
   position: absolute;
-  top: 5px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   color: #666;
   text-align: center;
@@ -789,9 +744,13 @@ async function handleExportPdf() {
 
 .page-footer {
   position: absolute;
-  bottom: 5px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   color: #666;
   text-align: center;

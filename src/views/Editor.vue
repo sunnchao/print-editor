@@ -143,38 +143,55 @@ function handlePreview() {
   }
 }
 
+const printIframeRef = ref<HTMLIFrameElement | null>(null)
+const isPrinting = ref(false)
+
 async function handlePrint() {
-  // 编辑器模式下，打印应该显示预览数据
-  // 先保存模板，然后打开预览页面并自动打印
   if (!templateId.value) {
     message.warning('请先保存模板后再打印')
     return
   }
 
   try {
-    // 先保存当前状态
+    // 先保存当前状态（包括批量打印配置）
     isSaving.value = true
     const template = await templateStore.loadTemplate(templateId.value)
     if (template) {
       template.name = templateName.value
       template.widgets = editorStore.widgets
       template.paperSize = editorStore.paperSize
+      template.globalForcePageBreak = editorStore.globalForcePageBreak
+      template.batchPrint = editorStore.batchPrint  // 保存批量打印配置
       await templateStore.updateTemplate(template)
     }
     isSaving.value = false
+    isPrinting.value = true
 
-    // 在新窗口打开预览页面，并传递打印意图
-    const printWindow = window.open(
-      `/preview/${templateId.value}?autoPrint=true`,
-      '_blank',
-      'width=1200,height=800'
-    )
+    // 使用隐藏的 iframe 加载预览页面并直接打印
+    const iframe = printIframeRef.value
+    if (!iframe) {
+      message.error('打印组件初始化失败')
+      isPrinting.value = false
+      return
+    }
 
-    if (!printWindow) {
-      message.error('无法打开打印窗口，请检查浏览器弹窗设置')
+    // 设置 iframe src，使用 autoPrint 参数让预览页面自动处理打印（包括设置纸张大小）
+    iframe.src = `/preview/${templateId.value}?autoPrint=true`
+    
+    iframe.onload = () => {
+      // 预览页面会自动触发打印，等待打印完成后关闭加载状态
+      setTimeout(() => {
+        isPrinting.value = false
+      }, 1000)
+    }
+
+    iframe.onerror = () => {
+      message.error('加载打印内容失败')
+      isPrinting.value = false
     }
   } catch (e) {
     isSaving.value = false
+    isPrinting.value = false
     message.error('打印准备失败: ' + e)
   }
 }
@@ -363,6 +380,17 @@ function handleImport(event: Event) {
       style="display: none"
       @change="handleImport"
     />
+    
+    <!-- 隐藏的打印 iframe -->
+    <iframe
+      ref="printIframeRef"
+      class="print-iframe"
+    />
+    
+    <!-- 打印加载提示 -->
+    <div v-if="isPrinting" class="print-loading">
+      <a-spin tip="正在准备打印..." />
+    </div>
   </div>
 </template>
 
@@ -403,5 +431,28 @@ function handleImport(event: Event) {
   display: flex;
   flex: 1;
   overflow: hidden;
+}
+
+.print-iframe {
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  border: none;
+  visibility: hidden;
+}
+
+.print-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
 }
 </style>

@@ -54,8 +54,7 @@ const gutterStyle = computed(() => ({
     top: 0,
     width: `${gutterLeftPx.value}px`,
     height: '100%',
-    background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent 5px)',
-    pointerEvents: 'none' as const,
+    background: 'rgba(128, 128, 128, 0.15)',
     zIndex: 1
   },
   right: {
@@ -64,8 +63,7 @@ const gutterStyle = computed(() => ({
     top: 0,
     width: `${gutterRightPx.value}px`,
     height: '100%',
-    background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent 5px)',
-    pointerEvents: 'none' as const,
+    background: 'rgba(128, 128, 128, 0.15)',
     zIndex: 1
   }
 }))
@@ -437,16 +435,24 @@ onUnmounted(() => {
             @dragover="onDragOver"
           >
             <!-- 左装订线 -->
-            <div v-if="gutterLeftPx > 0" :style="gutterStyle.left" class="gutter-area"></div>
+            <div v-if="gutterLeftPx > 0" :style="gutterStyle.left" class="gutter-area gutter-left">
+              <span class="gutter-label">装订线</span>
+            </div>
 
             <!-- 右装订线 -->
-            <div v-if="gutterRightPx > 0" :style="gutterStyle.right" class="gutter-area"></div>
+            <div v-if="gutterRightPx > 0" :style="gutterStyle.right" class="gutter-area gutter-right">
+              <span class="gutter-label">装订线</span>
+            </div>
 
             <!-- 页眉 -->
-            <div v-if="headerText" class="page-header">{{ headerText }}</div>
+            <div v-if="headerText" class="page-header">
+              <span class="page-header-text">{{ headerText }}</span>
+            </div>
 
             <!-- 页脚 -->
-            <div v-if="footerText" class="page-footer">{{ footerText }}</div>
+            <div v-if="footerText" class="page-footer">
+              <span class="page-footer-text">{{ footerText }}</span>
+            </div>
 
             <!-- 水印 -->
             <div v-if="watermark && watermark.text" class="watermark-container">
@@ -707,32 +713,70 @@ onUnmounted(() => {
 }
 
 .gutter-area {
-  border-right: 1px dashed #ccc;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gutter-area:hover {
+  background-color: rgba(64, 158, 255, 0.25) !important;
+}
+
+.gutter-left {
+  border-right: 1px dashed rgba(128, 128, 128, 0.5);
+}
+
+.gutter-right {
+  border-left: 1px dashed rgba(128, 128, 128, 0.5);
+}
+
+.gutter-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 11px;
+  color: rgba(128, 128, 128, 0.6);
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: 2px;
 }
 
 .page-header {
   position: absolute;
-  top: 5px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 5px 10px;
+  border-bottom: 1px dashed rgba(128, 128, 128, 0.4);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page-header-text {
+  display: block;
   font-size: 12px;
   color: #666;
   text-align: center;
-  pointer-events: none;
-  z-index: 0;
   white-space: nowrap;
 }
 
 .page-footer {
   position: absolute;
-  bottom: 5px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 5px 10px;
+  border-top: 1px dashed rgba(128, 128, 128, 0.4);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page-footer-text {
+  display: block;
   font-size: 12px;
   color: #666;
   text-align: center;
-  pointer-events: none;
-  z-index: 0;
   white-space: nowrap;
 }
 
