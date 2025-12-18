@@ -626,17 +626,17 @@ function print() {
               />
             </template>
 
-            <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>
+<!--            <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>-->
 
-            <a-form-item label="全局强制分页">
-              <a-switch
-                :checked="editorStore.globalForcePageBreak || false"
-                @change="(v: boolean) => editorStore.setGlobalForcePageBreak(v)"
-              />
-              <div style="font-size: 12px; color: #999; margin-top: 4px">
-                开启后，每个组件将独占一页（优先级高于单个组件设置）
-              </div>
-            </a-form-item>
+<!--            <a-form-item label="全局强制分页">-->
+<!--              <a-switch-->
+<!--                :checked="editorStore.globalForcePageBreak || false"-->
+<!--                @change="(v: boolean) => editorStore.setGlobalForcePageBreak(v)"-->
+<!--              />-->
+<!--              <div style="font-size: 12px; color: #999; margin-top: 4px">-->
+<!--                开启后，每个组件将独占一页（优先级高于单个组件设置）-->
+<!--              </div>-->
+<!--            </a-form-item>-->
 
             <a-form-item label="缩放">
               <a-slider
