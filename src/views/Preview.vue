@@ -220,41 +220,48 @@ const pagedWidgets = computed(() => {
     return batchPages
   }
   
-  // ========== 常规模式：使用原有分页逻辑 ==========
+  // ========== 常规模式：使用组件原始位置，但兼容复杂组件高度变化 ==========
   if (renderedWidgets.value.length === 0) {
     return []
   }
+
+  // 先按 y 坐标排序组件
+  const sortedWidgets = [...renderedWidgets.value].sort((a, b) => a.widget.y - b.widget.y)
 
   const pages: Array<Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }>> = []
 
   let currentPage: Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }> = []
   let currentPageIndex = 0
-  let nextTopInCurrentPage = 0  // 下一个组件在当前页面中应该放置的 top 位置
+  let nextMinTop = 0  // 下一个组件的最小 top 位置（前一个组件底部）
 
   // 检查是否启用了全局强制分页
   const globalForce = template.value.globalForcePageBreak || false
 
-  for (const item of renderedWidgets.value) {
+  for (const item of sortedWidgets) {
     const widget = item.widget
 
-    // 计算组件的实际高度
-    let actualHeight = widget.height
+    // 计算组件的实际高度（毫米转像素）
+    let actualHeightPx = widget.height * MM_TO_PX
     if (widget.type === 'table') {
       if (widget.tableMode === 'complex') {
         // 直接计算复杂表格的实际高度，不依赖组件回调
         const actualRows = getComplexTableActualRows(widget)
         const originalRows = widget.rows
         if (originalRows > 0 && actualRows > 0) {
-          actualHeight = widget.height * (actualRows / originalRows)
+          actualHeightPx = widget.height * MM_TO_PX * (actualRows / originalRows)
         }
       } else {
         const heightOffset = tableHeightOffsets[widget.id] || 0
-        actualHeight += heightOffset
+        actualHeightPx += heightOffset * MM_TO_PX
       }
     }
 
+    // 计算组件应该放置的位置：使用原始位置，但如果与前一个组件重叠则下移
+    const widgetOriginalTop = widget.y * MM_TO_PX
+    const topInPage = Math.max(widgetOriginalTop, nextMinTop)
+
     // 检查当前页面的剩余空间是否足够（使用内容区高度）
-    const spaceLeft = contentHeight - nextTopInCurrentPage
+    const spaceLeft = contentHeight - topInPage
 
     // 判断是否需要换页：
     // 1. 全局强制分页：每个组件独占一页（除了当前页为空）
@@ -263,7 +270,7 @@ const pagedWidgets = computed(() => {
     const needNewPage = currentPage.length > 0 && (
       globalForce || // 全局强制分页
       widget.forcePageBreak || // 组件强制分页
-      (spaceLeft < actualHeight && widget.type !== 'table') // 空间不足（非表格）
+      (spaceLeft < actualHeightPx && widget.type !== 'table') // 空间不足（非表格）
     )
 
     if (needNewPage) {
@@ -273,21 +280,25 @@ const pagedWidgets = computed(() => {
       // 创建新页
       currentPage = []
       currentPageIndex++
-      nextTopInCurrentPage = 0  // 新页面从顶部开始
+      nextMinTop = 0  // 新页面从顶部开始
     }
 
+    // 重新计算当前页的 topInPage（换页后可能变化）
+    const finalTopInPagePx = currentPageIndex === 0 ? topInPage : Math.max(widget.y * MM_TO_PX, nextMinTop)
+    const finalSpaceLeft = contentHeight - finalTopInPagePx
+
     // 处理复杂表格的跨页分割（从当前位置开始渲染）
-    if (widget.type === 'table' && widget.tableMode === 'complex' && actualHeight > spaceLeft) {
+    if (widget.type === 'table' && widget.tableMode === 'complex' && actualHeightPx > finalSpaceLeft) {
       const tableWidget = widget as any
       const actualRows = getComplexTableActualRows(tableWidget)
       const headerRows = tableWidget.headerRows || 0
 
       if (actualRows > headerRows) {
         // 计算每行的平均高度
-        const rowHeight = actualHeight / actualRows
+        const rowHeight = actualHeightPx / actualRows
 
         // 计算当前页剩余空间能容纳多少行（包括表头）
-        const rowsInCurrentPage = Math.floor(spaceLeft / rowHeight)
+        const rowsInCurrentPage = Math.floor(finalSpaceLeft / rowHeight)
 
         // 如果当前页剩余空间至少能放下表头+1行数据，先在当前页渲染部分表格
         if (rowsInCurrentPage > headerRows) {
@@ -298,7 +309,7 @@ const pagedWidgets = computed(() => {
             ...item,
             key: item.key,
             pageOffset: currentPageIndex * paperHeight,
-            topInPage: nextTopInCurrentPage,
+            topInPage: finalTopInPagePx / MM_TO_PX,  // 转回毫米
             tableStartRow: 0,
             tableEndRow: endRowInCurrentPage
           })
@@ -307,7 +318,7 @@ const pagedWidgets = computed(() => {
           pages.push(currentPage)
           currentPage = []
           currentPageIndex++
-          nextTopInCurrentPage = 0
+          nextMinTop = 0
 
           // 继续处理剩余的行
           let currentRow = endRowInCurrentPage + 1
@@ -333,11 +344,11 @@ const pagedWidgets = computed(() => {
               pages.push(currentPage)
               currentPage = []
               currentPageIndex++
-              nextTopInCurrentPage = 0
+              nextMinTop = 0
             } else {
-              // 最后一部分表格，更新 nextTopInCurrentPage
+              // 最后一部分表格，更新 nextMinTop
               const lastPartHeight = (endRow - (currentRow - maxRowsInPage) + 1) * rowHeight
-              nextTopInCurrentPage = lastPartHeight
+              nextMinTop = lastPartHeight
             }
           }
         } else {
@@ -346,7 +357,7 @@ const pagedWidgets = computed(() => {
             pages.push(currentPage)
             currentPage = []
             currentPageIndex++
-            nextTopInCurrentPage = 0
+            nextMinTop = 0
           }
 
           // 分割表格到多个页面
@@ -371,10 +382,10 @@ const pagedWidgets = computed(() => {
               pages.push(currentPage)
               currentPage = []
               currentPageIndex++
-              nextTopInCurrentPage = 0
+              nextMinTop = 0
             } else {
               const lastPartHeight = (endRow - (currentRow - maxRowsInPage) + 1) * rowHeight
-              nextTopInCurrentPage = lastPartHeight
+              nextMinTop = lastPartHeight
             }
           }
         }
@@ -383,22 +394,22 @@ const pagedWidgets = computed(() => {
       }
     }
 
-    // 将组件添加到当前页
+    // 将组件添加到当前页（使用原始位置或调整后的位置）
     currentPage.push({
       ...item,
       pageOffset: currentPageIndex * paperHeight,
-      topInPage: nextTopInCurrentPage
+      topInPage: finalTopInPagePx / MM_TO_PX  // 转回毫米
     })
 
-    // 更新下一个组件的位置
-    nextTopInCurrentPage += actualHeight
+    // 更新下一个组件的最小 top 位置（当前组件底部）
+    nextMinTop = finalTopInPagePx + actualHeightPx
 
     // 如果启用了全局强制分页或组件强制分页，当前组件后立即新建页面
     if (globalForce || widget.forcePageBreak) {
       pages.push(currentPage)
       currentPage = []
       currentPageIndex++
-      nextTopInCurrentPage = 0
+      nextMinTop = 0
     }
   }
 

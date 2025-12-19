@@ -3,8 +3,6 @@ import {
   FontSizeOutlined, 
   PictureOutlined, 
   TableOutlined, 
-  BarcodeOutlined,
-  QrcodeOutlined,
   LineOutlined,
   BorderOutlined
 } from '@ant-design/icons-vue'

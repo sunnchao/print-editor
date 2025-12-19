@@ -54,7 +54,7 @@ function handleInputChange(e: Event) {
     </a-form-item>
 
     <a-form-item label="格式">
-      <a-select :value="widget.format" @change="v => update('format', v)">
+      <a-select :value="widget.format" @change="(v) => update('format', v)">
         <a-select-option v-for="f in formats" :key="f.value" :value="f.value">
           {{ f.label }}
         </a-select-option>
