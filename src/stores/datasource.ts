@@ -24,7 +24,15 @@ export const useDataSourceStore = defineStore('datasource', () => {
       const sources = await getAllDataSources()
       dataSources.value = sources
       if (sources.length > 0) {
-        currentDataSource.value = sources[0]
+        const currentFileName = currentDataSource.value?.fileName
+        const stillExists = currentFileName
+          ? sources.some(ds => ds.fileName === currentFileName)
+          : false
+        if (!currentDataSource.value || !stillExists) {
+          currentDataSource.value = sources[0]
+        }
+      } else {
+        currentDataSource.value = null
       }
       console.log(`从 IndexedDB 加载了 ${sources.length} 个数据源`)
     } catch (error) {

@@ -41,6 +41,63 @@ const FOOTER_HEIGHT_MM = 8
 const headerText = computed(() => template.value?.paperSize.header || '')
 const footerText = computed(() => template.value?.paperSize.footer || '')
 
+function getTemplateReferencedColumns(t: Template): Set<string> {
+  const columns = new Set<string>()
+  for (const widget of t.widgets) {
+    if ('dataSource' in widget && typeof (widget as any).dataSource === 'string' && (widget as any).dataSource) {
+      columns.add((widget as any).dataSource)
+    }
+    if (widget.type === 'table') {
+      const table: any = widget
+      const bindings = table.columnBindings || {}
+      Object.values(bindings).forEach((v: any) => {
+        if (typeof v === 'string' && v) columns.add(v)
+      })
+      const cells: any[][] = table.cells || []
+      cells.forEach(row => row.forEach(cell => {
+        const ds = cell?.dataSource
+        if (typeof ds === 'string' && ds) columns.add(ds)
+      }))
+    }
+  }
+  return columns
+}
+
+function ensurePreviewDataSource() {
+  if (!template.value) return
+
+  const preferredFileName = template.value.batchPrint?.dataSourceFile
+  if (preferredFileName) {
+    const exists = dataSourceStore.dataSources.some(ds => ds.fileName === preferredFileName)
+    if (exists) {
+      dataSourceStore.setCurrentDataSource(preferredFileName)
+      return
+    }
+  }
+
+  const referencedColumns = getTemplateReferencedColumns(template.value)
+  if (referencedColumns.size === 0) return
+
+  const currentFileName = dataSourceStore.currentDataSource?.fileName
+  const currentMatchCount = dataSourceStore.currentDataSource
+    ? dataSourceStore.currentDataSource.columns.reduce((acc, col) => acc + (referencedColumns.has(col.name) ? 1 : 0), 0)
+    : 0
+
+  let bestFileName: string | null = null
+  let bestMatchCount = 0
+  for (const ds of dataSourceStore.dataSources) {
+    const matchCount = ds.columns.reduce((acc, col) => acc + (referencedColumns.has(col.name) ? 1 : 0), 0)
+    if (matchCount > bestMatchCount) {
+      bestMatchCount = matchCount
+      bestFileName = ds.fileName
+    }
+  }
+
+  if (bestFileName && bestMatchCount > currentMatchCount && bestFileName !== currentFileName) {
+    dataSourceStore.setCurrentDataSource(bestFileName)
+  }
+}
+
 // 页眉页脚高度（像素）
 const headerHeightPx = computed(() => headerText.value ? HEADER_HEIGHT_MM * MM_TO_PX : 0)
 const footerHeightPx = computed(() => footerText.value ? FOOTER_HEIGHT_MM * MM_TO_PX : 0)
@@ -146,7 +203,7 @@ function getComplexTableActualRows(widget: any): number {
 const renderedWidgets = computed(() => {
   if (!template.value) return []
 
-  const result: Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number }> = []
+  const result: Array<{ widget: Widget; dataRowIndex?: number; dataRangeStart?: number; dataRangeCount?: number; key: string; loopIndex?: number }> = []
 
   // 清空之前的循环扩展记录
   Object.keys(loopWidgetExpansions).forEach(key => {
@@ -159,7 +216,9 @@ const renderedWidgets = computed(() => {
       result.push({ 
         widget, 
         key: widget.id,
-        dataRowIndex: 0  // 固定使用第一条数据
+        dataRowIndex: 0, // 兼容旧逻辑
+        dataRangeStart: 0,
+        dataRangeCount: 1 // 非批量打印默认范围 = 1
       })
       continue
     }
@@ -175,6 +234,8 @@ const renderedWidgets = computed(() => {
     result.push({
       widget,
       dataRowIndex: 0,
+      dataRangeStart: 0,
+      dataRangeCount: 1,
       key: `${widget.id}-row-0`
     })
   }
@@ -197,17 +258,19 @@ const pagedWidgets = computed(() => {
     // 确保数据源已设置
     ensureBatchDataSource()
     
-    const batchPages: Array<Array<{ widget: Widget; dataRowIndex?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }>> = []
+    const batchPages: Array<Array<{ widget: Widget; dataRowIndex?: number; dataRangeStart?: number; dataRangeCount?: number; key: string; loopIndex?: number; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }>> = []
     
     // 遍历每个数据行，为其生成一个完整页面
     for (const rowIndex of batchDataRows.value) {
-      const pageWidgets: Array<{ widget: Widget; dataRowIndex: number; key: string; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }> = []
+      const pageWidgets: Array<{ widget: Widget; dataRowIndex: number; dataRangeStart?: number; dataRangeCount?: number; key: string; pageOffset: number; topInPage: number; tableStartRow?: number; tableEndRow?: number }> = []
       
       // 将模板中的所有组件复制到当前页面，并绑定到当前数据行
       for (const widget of template.value.widgets) {
         pageWidgets.push({
           widget,
           dataRowIndex: rowIndex,  // 关键：传递当前数据行索引
+          dataRangeStart: rowIndex,
+          dataRangeCount: 1, // 批量打印每页范围 = 1
           key: `${widget.id}-batch-${rowIndex}`,
           pageOffset: batchPages.length * paperHeight,
           topInPage: widget.y  // 使用组件原始位置（padding已处理偏移）
@@ -305,14 +368,14 @@ const pagedWidgets = computed(() => {
           // 在当前页渲染部分表格
           const endRowInCurrentPage = rowsInCurrentPage - 1
 
-          currentPage.push({
-            ...item,
-            key: item.key,
-            pageOffset: currentPageIndex * paperHeight,
-            topInPage: finalTopInPagePx / MM_TO_PX,  // 转回毫米
-            tableStartRow: 0,
-            tableEndRow: endRowInCurrentPage
-          })
+            currentPage.push({
+              ...item,
+              key: item.key,
+              pageOffset: currentPageIndex * paperHeight,
+              topInPage: finalTopInPagePx / MM_TO_PX,  // 转回毫米
+              tableStartRow: 0,
+              tableEndRow: endRowInCurrentPage
+            })
 
           // 保存当前页
           pages.push(currentPage)
@@ -428,6 +491,7 @@ onMounted(async () => {
     const t = await templateStore.loadTemplate(id)
     if (t) {
       template.value = t
+      ensurePreviewDataSource()
     } else {
       message.error('模板不存在')
       router.push('/')
@@ -676,6 +740,8 @@ async function handleExportPdf() {
                 :is="getWidgetComponent(item.widget.type)"
                 :widget="item.widget"
                 :data-row-index="item.dataRowIndex"
+                :data-range-start="item.dataRangeStart"
+                :data-range-count="item.dataRangeCount"
                 :start-row="item.tableStartRow"
                 :end-row="item.tableEndRow"
                 @height-change="createHeightChangeHandler(item.widget.id)"

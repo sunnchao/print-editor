@@ -9,6 +9,8 @@ import { cloneDeep } from 'lodash-es'
 const props = withDefaults(defineProps<{
   widget: TableWidget
   dataRowIndex?: number  // 数据行索引（用于循环渲染）
+  dataRangeStart?: number // 数据范围起始行（用于简单表格按行取数）
+  dataRangeCount?: number // 数据范围长度（用于简单表格按行取数）
   startRow?: number      // 开始行索引（用于跨页分割表格）
   endRow?: number        // 结束行索引（用于跨页分割表格）
 }>(), {
@@ -155,7 +157,7 @@ const renderRows = computed(() => {
     columnBindings: columnBindings.value,
     headerRows: headerRowCount.value,
     dataSourceName: dataSourceStore.currentDataSource?.fileName,
-    dataSourceLength: dataSourceStore.currentDataSource?.data?.length,
+    dataSourceLength: dataSourceStore.currentDataSource?.columns?.[0]?.data?.length,
     isHeaderHidden: isHeaderHidden.value,
     startRow: props.startRow,
     endRow: props.endRow
@@ -408,13 +410,17 @@ function getCellDisplayValue(renderRowIndex: number, col: number, cell: any) {
     if (!bindingKey) {
       return cell.content
     }
+    if (isSimpleTable.value) {
+      // 简单表格：只存在“数据范围(行)”概念，但不随表格行递增；
+      // 同一条数据行会填充整张表格（匹配模板上多个字段）。
+      // 非批量打印时 rangeCount 默认为 1（使用第一条数据）。
+      const rangeStart = props.dataRangeStart ?? props.dataRowIndex ?? 0
+      const rangeCount = props.dataRangeCount ?? 1
+      if (rangeCount <= 0) return ''
+      return getClampedColumnValue(bindingKey, rangeStart)
+    }
     const headerOffset = isHeaderHidden.value ? 0 : headerRowCount.value
     const dataRowIndex = Math.max(renderRowIndex - headerOffset, 0)
-    if (isSimpleTable.value) {
-      // 简单表格：优先使用传入的 props.dataRowIndex（批量打印模式），否则使用 0
-      const rowIdx = props.dataRowIndex ?? 0
-      return getClampedColumnValue(bindingKey, rowIdx)
-    }
     if (isAutoFillTable.value) {
       return getClampedColumnValue(bindingKey, dataRowIndex)
     }
