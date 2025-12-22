@@ -178,7 +178,7 @@ function handleBorderColorChange(position: 'borderTop' | 'borderRight' | 'border
       </a-select>
     </a-form-item>
 
-    <a-form-item v-if="widget.dataSource" label="数据行">
+    <!-- <a-form-item v-if="widget.dataSource" label="数据行">
       <a-select
         :value="widget.dataRowIndex ?? 'all'"
         @change="v => update('dataRowIndex', v)"
@@ -188,7 +188,7 @@ function handleBorderColorChange(position: 'borderTop' | 'borderRight' | 'border
           {{ option.label }}
         </a-select-option>
       </a-select>
-    </a-form-item>
+    </a-form-item> -->
 
     <a-divider orientation="left" style="font-size: 12px">边框设置</a-divider>
 

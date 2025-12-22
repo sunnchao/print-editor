@@ -156,8 +156,8 @@ export const useEditorStore = defineStore('editor', () => {
   
   // 批量打印配置：用于将模板与数据源结合，生成 N 份打印内容
   const batchPrint = ref<BatchPrintConfig>({
-    enabled: false,
-    printRange: 'all'
+    enabled: true,
+    printRange: 'range'
   })
   
   const history = ref<Widget[][]>([])

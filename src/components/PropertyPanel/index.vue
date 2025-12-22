@@ -361,7 +361,7 @@ function print() {
             </div>
             
             <a-divider orientation="left" style="font-size: 12px">可用数据列</a-divider>
-            <a-select
+            <!-- <a-select
               v-model:value="dataSourceStore.currentDataSource"
               style="width: 100%; margin-bottom: 8px"
               placeholder="选择数据源"
@@ -369,7 +369,7 @@ function print() {
               <a-select-option v-for="ds in dataSourceStore.dataSources" :key="ds.fileName" :value="ds">
                 {{ ds.fileName }}
               </a-select-option>
-            </a-select>
+            </a-select> -->
             
             <div v-if="dataSourceStore.currentDataSource" class="column-list">
               <div v-for="col in dataSourceStore.currentDataSource.columns" :key="col.name" class="column-item">
@@ -379,15 +379,15 @@ function print() {
           </div>
 
           <!-- 批量打印设置：用于将模板与数据源结合，生成 N 份打印内容 -->
-          <a-divider orientation="left" style="font-size: 12px">批量打印</a-divider>
+          <!-- <a-divider orientation="left" style="font-size: 12px">批量打印</a-divider> -->
 
           <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
-            <a-form-item label="启用批量打印">
+            <!-- <a-form-item label="启用批量打印">
               <a-switch
                 :checked="editorStore.batchPrint.enabled"
                 @change="(v: boolean) => editorStore.setBatchPrint({ enabled: v })"
               />
-            </a-form-item>
+            </a-form-item> -->
 
             <!-- 批量打印详细设置，仅在启用时显示 -->
             <template v-if="editorStore.batchPrint.enabled">
@@ -413,8 +413,8 @@ function print() {
                   :value="editorStore.batchPrint.printRange"
                   @change="(e: any) => editorStore.setBatchPrint({ printRange: e.target.value })"
                 >
+                <a-radio value="range">指定范围</a-radio>
                   <a-radio value="all">全部</a-radio>
-                  <a-radio value="range">指定范围</a-radio>
                 </a-radio-group>
               </a-form-item>
 

@@ -32,12 +32,60 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
 provide('renderMode', 'editor')
 
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  if (!el) return false
+  if (el.isContentEditable) return true
+  const tag = el.tagName?.toLowerCase()
+  if (!tag) return false
+  return tag === 'input' || tag === 'textarea' || tag === 'select'
+}
+
+function nudgeSelectedWidget(dxMm: number, dyMm: number) {
+  const widget = editorStore.selectedWidget
+  if (!widget || widget.locked) return
+
+  const paperWidth = editorStore.paperSize.width
+  const paperHeight = editorStore.paperSize.height
+  const maxX = Math.max(0, paperWidth - widget.width)
+  const maxY = Math.max(0, paperHeight - widget.height)
+
+  const nextX = Math.max(0, Math.min(widget.x + dxMm, maxX))
+  const nextY = Math.max(0, Math.min(widget.y + dyMm, maxY))
+
+  if (nextX === widget.x && nextY === widget.y) return
+  editorStore.updateWidget(widget.id, { x: nextX, y: nextY })
+}
+
 // 键盘快捷键处理
 function handleKeydown(event: KeyboardEvent) {
+  if (isTypingTarget(event.target)) return
+
   // Ctrl+S 或 Cmd+S (Mac) 保存
   if ((event.ctrlKey || event.metaKey) && event.key === 's') {
     event.preventDefault()
     handleSave()
+  }
+
+  // 方向键微调组件位置（编辑模式）
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    if (!editorStore.selectedWidgetId) return
+    event.preventDefault()
+    const stepMm = event.shiftKey ? 5 : (event.altKey ? 0.1 : 1)
+    switch (event.key) {
+      case 'ArrowUp':
+        nudgeSelectedWidget(0, -stepMm)
+        break
+      case 'ArrowDown':
+        nudgeSelectedWidget(0, stepMm)
+        break
+      case 'ArrowLeft':
+        nudgeSelectedWidget(-stepMm, 0)
+        break
+      case 'ArrowRight':
+        nudgeSelectedWidget(stepMm, 0)
+        break
+    }
   }
 }
 

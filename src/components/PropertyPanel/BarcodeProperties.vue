@@ -74,7 +74,7 @@ function handleInputChange(e: Event) {
       </a-select>
     </a-form-item>
 
-    <a-form-item v-if="widget.dataSource" label="数据行">
+    <!-- <a-form-item v-if="widget.dataSource" label="数据行">
       <a-select
         :value="widget.dataRowIndex ?? 'all'"
         @change="v => update('dataRowIndex', v)"
@@ -84,7 +84,7 @@ function handleInputChange(e: Event) {
           {{ option.label }}
         </a-select-option>
       </a-select>
-    </a-form-item>
+    </a-form-item> -->
 
 <!--    <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>-->
 
