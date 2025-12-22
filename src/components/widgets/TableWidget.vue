@@ -3,6 +3,7 @@ import { computed, ref, watch, inject, onBeforeUnmount, onMounted, nextTick } fr
 import { useEditorStore } from '@/stores/editor'
 import { useDataSourceStore } from '@/stores/datasource'
 import type { TableWidget } from '@/types'
+import { MM_TO_PX } from '@/types'
 import { cloneDeep } from 'lodash-es'
 
 const props = withDefaults(defineProps<{
@@ -123,6 +124,11 @@ const isHeaderHidden = computed(() => props.widget.showHeader === false && heade
 const columnResizeState = ref<{ index: number; startX: number; initialWidths: number[] } | null>(null)
 const rowResizeState = ref<{ topIndex: number; bottomIndex: number; startY: number; initialHeights: number[] } | null>(null)
 const defaultRowHeight = computed(() => (props.widget.rows > 0 ? 1 / props.widget.rows : 0))
+
+let columnResizeRafId: number | null = null
+let pendingColumnResizeClientX: number | null = null
+let rowResizeRafId: number | null = null
+let pendingRowResizeClientY: number | null = null
 
 const isSelected = computed(() => (row: number, col: number) => {
   if (editorStore.selectedWidgetId !== props.widget.id) return false
@@ -572,22 +578,32 @@ function startColumnResize(index: number, event: MouseEvent) {
     startX: event.clientX,
     initialWidths: [...normalizedColumnWidths.value]
   }
-  window.addEventListener('mousemove', onColumnResize)
+  window.addEventListener('mousemove', onColumnResizeThrottled)
   window.addEventListener('mouseup', stopColumnResize)
 }
 
-function onColumnResize(event: MouseEvent) {
+function onColumnResizeThrottled(event: MouseEvent) {
+  pendingColumnResizeClientX = event.clientX
+  if (columnResizeRafId !== null) return
+  columnResizeRafId = requestAnimationFrame(() => {
+    columnResizeRafId = null
+    if (pendingColumnResizeClientX === null) return
+    onColumnResize(pendingColumnResizeClientX)
+  })
+}
+
+function onColumnResize(clientX: number) {
   const state = columnResizeState.value
   if (!state) return
-  const tableWidth = props.widget.width
-  if (tableWidth <= 0) return
+  const tableWidthPx = props.widget.width * MM_TO_PX
+  if (tableWidthPx <= 0) return
   const scale = editorStore.scale
-  let deltaRatio = (event.clientX - state.startX) / scale / tableWidth
+  let deltaRatio = (clientX - state.startX) / scale / tableWidthPx
   const widths = [...state.initialWidths]
   const leftIndex = state.index
   const rightIndex = state.index + 1
   if (rightIndex >= widths.length) return
-  const minRatio = tableWidth > 0 ? MIN_COLUMN_PX / tableWidth : 0
+  const minRatio = tableWidthPx > 0 ? MIN_COLUMN_PX / tableWidthPx : 0
   const maxIncrease = widths[rightIndex] - minRatio
   const maxDecrease = widths[leftIndex] - minRatio
   deltaRatio = Math.min(deltaRatio, maxIncrease)
@@ -599,7 +615,12 @@ function onColumnResize(event: MouseEvent) {
 
 function stopColumnResize() {
   columnResizeState.value = null
-  window.removeEventListener('mousemove', onColumnResize)
+  pendingColumnResizeClientX = null
+  if (columnResizeRafId !== null) {
+    cancelAnimationFrame(columnResizeRafId)
+    columnResizeRafId = null
+  }
+  window.removeEventListener('mousemove', onColumnResizeThrottled)
   window.removeEventListener('mouseup', stopColumnResize)
 }
 
@@ -612,22 +633,32 @@ function startRowResize(boundary: { topIndex: number; bottomIndex: number }, eve
     startY: event.clientY,
     initialHeights: [...normalizedRowHeights.value]
   }
-  window.addEventListener('mousemove', onRowResize)
+  window.addEventListener('mousemove', onRowResizeThrottled)
   window.addEventListener('mouseup', stopRowResize)
 }
 
-function onRowResize(event: MouseEvent) {
+function onRowResizeThrottled(event: MouseEvent) {
+  pendingRowResizeClientY = event.clientY
+  if (rowResizeRafId !== null) return
+  rowResizeRafId = requestAnimationFrame(() => {
+    rowResizeRafId = null
+    if (pendingRowResizeClientY === null) return
+    onRowResize(pendingRowResizeClientY)
+  })
+}
+
+function onRowResize(clientY: number) {
   const state = rowResizeState.value
   if (!state) return
-  const tableHeight = props.widget.height
-  if (tableHeight <= 0) return
+  const tableHeightPx = props.widget.height * MM_TO_PX
+  if (tableHeightPx <= 0) return
   const scale = editorStore.scale
-  let deltaRatio = (event.clientY - state.startY) / scale / tableHeight
+  let deltaRatio = (clientY - state.startY) / scale / tableHeightPx
   const heights = [...state.initialHeights]
   const topIndex = state.topIndex
   const bottomIndex = state.bottomIndex
   if (bottomIndex >= heights.length || topIndex < 0) return
-  const minRatio = tableHeight > 0 ? MIN_ROW_PX / tableHeight : 0
+  const minRatio = tableHeightPx > 0 ? MIN_ROW_PX / tableHeightPx : 0
   const maxIncrease = heights[bottomIndex] - minRatio
   const maxDecrease = heights[topIndex] - minRatio
   deltaRatio = Math.min(deltaRatio, maxIncrease)
@@ -639,7 +670,12 @@ function onRowResize(event: MouseEvent) {
 
 function stopRowResize() {
   rowResizeState.value = null
-  window.removeEventListener('mousemove', onRowResize)
+  pendingRowResizeClientY = null
+  if (rowResizeRafId !== null) {
+    cancelAnimationFrame(rowResizeRafId)
+    rowResizeRafId = null
+  }
+  window.removeEventListener('mousemove', onRowResizeThrottled)
   window.removeEventListener('mouseup', stopRowResize)
 }
 
@@ -838,15 +874,15 @@ function shouldRenderCell(renderRow: number, col: number): boolean {
       <!-- 行头 (用于选择行) -->
       <div class="row-headers" v-if="!isPreview && editorStore.selectedWidgetId === widget.id">
         <div
-        v-for="(height, row) in normalizedRowHeights"
-        :key="row"
-        class="row-header"
-        :style="{ height: `${height * 100}%` }"
-        @mousedown.stop="onRowHeaderMouseDown($event, row)"
-        @mouseenter="onRowHeaderMouseEnter(row)"
-        @contextmenu="onRowHeaderContextMenu(row)"
-      ></div>
-    </div>
+          v-for="(_row, renderRowIndex) in renderRows"
+          :key="renderRowIndex"
+          class="row-header"
+          :style="{ height: `${getRowHeightPercent(renderRowIndex)}%` }"
+          @mousedown.stop="onRowHeaderMouseDown($event, renderRowIndex)"
+          @mouseenter="onRowHeaderMouseEnter(renderRowIndex)"
+          @contextmenu="onRowHeaderContextMenu(renderRowIndex)"
+        ></div>
+      </div>
       <div class="table-content">
         <table :style="tableStyle">
           <colgroup>
