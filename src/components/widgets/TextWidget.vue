@@ -84,26 +84,83 @@ function getBorderStyle(border?: { width: number; color: string; style: string }
   return `${border.width}px ${border.style} ${border.color}`
 }
 
-const textStyle = computed(() => ({
-  fontSize: `${props.widget.fontSize}px`,
-  fontFamily: props.widget.fontFamily,
-  fontWeight: props.widget.fontWeight,
-  color: props.widget.color,
-  textAlign: props.widget.textAlign,
-  width: '100%',
-  height: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: props.widget.textAlign === 'center' ? 'center' :
-                  props.widget.textAlign === 'right' ? 'flex-end' : 'flex-start',
-  overflow: 'hidden',
-  boxSizing: 'border-box' as const,
-  // 四边边框
-  borderTop: getBorderStyle(props.widget.borderTop),
-  borderRight: getBorderStyle(props.widget.borderRight),
-  borderBottom: getBorderStyle(props.widget.borderBottom),
-  borderLeft: getBorderStyle(props.widget.borderLeft)
-}))
+function parseCustomCss(input?: string): Record<string, string> {
+  if (!input) return {}
+  const blocked = new Set([
+    'position',
+    'inset',
+    'top',
+    'right',
+    'bottom',
+    'left',
+    'z-index',
+    'width',
+    'height',
+    'min-width',
+    'min-height',
+    'max-width',
+    'max-height',
+    'display',
+    'overflow',
+    'box-sizing',
+    'justify-content',
+    'align-items'
+  ])
+
+  const result: Record<string, string> = {}
+  for (const rawDecl of input.split(';')) {
+    const decl = rawDecl.trim()
+    if (!decl) continue
+    const colonIndex = decl.indexOf(':')
+    if (colonIndex <= 0) continue
+    const prop = decl.slice(0, colonIndex).trim()
+    const value = decl.slice(colonIndex + 1).trim()
+    if (!prop || !value) continue
+    if (blocked.has(prop.toLowerCase())) continue
+    result[prop] = value
+  }
+  return result
+}
+
+function toAlignItems(verticalAlign: TextWidget['verticalAlign']): 'flex-start' | 'center' | 'flex-end' {
+  if (verticalAlign === 'top') return 'flex-start'
+  if (verticalAlign === 'bottom') return 'flex-end'
+  return 'center'
+}
+
+function toJustifyContent(textAlign: TextWidget['textAlign']): 'flex-start' | 'center' | 'flex-end' {
+  if (textAlign === 'center') return 'center'
+  if (textAlign === 'right') return 'flex-end'
+  return 'flex-start'
+}
+
+const textStyle = computed(() => {
+  const textAlign = props.widget.textAlign || 'left'
+  const verticalAlign = props.widget.verticalAlign || 'middle'
+  const custom = parseCustomCss(props.widget.customCss)
+
+  return {
+    fontSize: `${props.widget.fontSize}px`,
+    fontFamily: props.widget.fontFamily,
+    fontWeight: props.widget.fontWeight,
+    color: props.widget.color,
+    textAlign,
+    letterSpacing: `${props.widget.letterSpacing ?? 0}px`,
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: toAlignItems(verticalAlign),
+    justifyContent: toJustifyContent(textAlign),
+    overflow: 'hidden',
+    boxSizing: 'border-box' as const,
+    ...custom,
+    // 四边边框
+    borderTop: getBorderStyle(props.widget.borderTop),
+    borderRight: getBorderStyle(props.widget.borderRight),
+    borderBottom: getBorderStyle(props.widget.borderBottom),
+    borderLeft: getBorderStyle(props.widget.borderLeft)
+  }
+})
 
 function onDoubleClick() {
   // 预览模式下禁止编辑

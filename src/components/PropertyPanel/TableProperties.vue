@@ -36,6 +36,12 @@ const textAlignOptions = [
   { label: '右对齐', value: 'right' }
 ]
 
+const verticalAlignOptions = [
+  { label: '顶部', value: 'top' },
+  { label: '居中', value: 'middle' },
+  { label: '底部', value: 'bottom' }
+]
+
 const tableMode = computed(() => props.widget.tableMode ?? 'legacy')
 const isSimpleMode = computed(() => tableMode.value === 'simple')
 const isComplexMode = computed(() => tableMode.value === 'complex')
@@ -849,7 +855,7 @@ function updateColWidth(widthPx: number) {
             @change="handleCellColorChange"
           />
         </a-form-item>
-        <a-form-item label="对齐方式">
+        <a-form-item label="水平对齐">
           <a-select
             :value="activeCell?.textAlign || 'left'"
             @change="v => updateCellStyle({ textAlign: v })"
@@ -858,6 +864,26 @@ function updateColWidth(widthPx: number) {
               {{ option.label }}
             </a-select-option>
           </a-select>
+        </a-form-item>
+        <a-form-item label="垂直对齐">
+          <a-select
+            :value="activeCell?.verticalAlign || 'middle'"
+            @change="v => updateCellStyle({ verticalAlign: v })"
+          >
+            <a-select-option v-for="option in verticalAlignOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="字间距">
+          <a-input-number
+            :value="activeCell?.letterSpacing ?? 0"
+            @change="v => updateCellStyle({ letterSpacing: v ?? 0 })"
+            :min="-10"
+            :max="100"
+            :step="0.5"
+            style="width: 100%"
+          />
         </a-form-item>
         <a-form-item label="背景颜色">
           <a-input

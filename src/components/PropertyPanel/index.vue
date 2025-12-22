@@ -361,7 +361,7 @@ function print() {
             </div>
             
             <a-divider orientation="left" style="font-size: 12px">可用数据列</a-divider>
-            <!-- <a-select
+            <a-select
               v-model:value="dataSourceStore.currentDataSource"
               style="width: 100%; margin-bottom: 8px"
               placeholder="选择数据源"
@@ -369,7 +369,7 @@ function print() {
               <a-select-option v-for="ds in dataSourceStore.dataSources" :key="ds.fileName" :value="ds">
                 {{ ds.fileName }}
               </a-select-option>
-            </a-select> -->
+            </a-select>
             
             <div v-if="dataSourceStore.currentDataSource" class="column-list">
               <div v-for="col in dataSourceStore.currentDataSource.columns" :key="col.name" class="column-item">

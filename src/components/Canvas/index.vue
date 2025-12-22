@@ -168,7 +168,10 @@ function createWidget(type: string, x: number, y: number, options?: { tableMode?
         fontFamily: 'Arial',
         fontWeight: 'normal',
         color: '#000000',
-        textAlign: 'left'
+        textAlign: 'left',
+        verticalAlign: 'middle',
+        letterSpacing: 0,
+        customCss: ''
         // title, borderTop, borderRight, borderBottom, borderLeft 是可选的，不需要默认值
       } as Omit<TextWidget, 'id' | 'zIndex'>)
       break

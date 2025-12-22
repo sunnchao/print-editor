@@ -36,6 +36,9 @@ export interface TextWidget extends WidgetBase {
   fontWeight: string
   color: string
   textAlign: 'left' | 'center' | 'right'
+  verticalAlign?: 'top' | 'middle' | 'bottom'
+  letterSpacing?: number // px
+  customCss?: string // CSS declarations, e.g. "line-height: 1.2; text-decoration: underline;"
   dataSource?: string // Excel 列绑定
   dataRowIndex?: number | 'all' // 数据行选择：'all' 表示所有行，数字表示具体行索引
   // 四边边框设置
@@ -62,6 +65,8 @@ export interface TableCell {
   fontWeight?: string
   color?: string
   textAlign?: 'left' | 'center' | 'right'
+  verticalAlign?: 'top' | 'middle' | 'bottom'
+  letterSpacing?: number // px
   backgroundColor?: string
   // 单元格边框样式
   borderTop?: BorderStyle

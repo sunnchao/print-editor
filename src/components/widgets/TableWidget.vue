@@ -528,6 +528,8 @@ const cellStyle = computed(() => (renderRowIndex: number, colIndex: number) => {
     baseStyle.fontWeight = cell.fontWeight || (isHeaderRow ? 'bold' : 'normal')
     baseStyle.color = cell.color || '#000000'
     baseStyle.textAlign = cell.textAlign || 'left'
+    baseStyle.verticalAlign = cell.verticalAlign || 'middle'
+    baseStyle.letterSpacing = `${cell.letterSpacing ?? 0}px`
     baseStyle.backgroundColor = selected
       ? '#e6f7ff'
       : (cell.backgroundColor || (isHeaderRow ? '#f5f5f5' : 'transparent'))

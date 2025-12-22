@@ -32,6 +32,12 @@ const textAligns = [
   { label: '右对齐', value: 'right' }
 ]
 
+const verticalAligns = [
+  { label: '顶部', value: 'top' },
+  { label: '居中', value: 'middle' },
+  { label: '底部', value: 'bottom' }
+]
+
 const borderStyles = [
   { label: '无', value: 'none' },
   { label: '实线', value: 'solid' },
@@ -64,7 +70,7 @@ function updateBorder(position: 'borderTop' | 'borderRight' | 'borderBottom' | '
 
 // 处理输入框变化的辅助函数
 function handleInputChange(key: keyof TextWidget, e: Event) {
-  const value = (e.target as HTMLInputElement)?.value
+  const value = (e.target as HTMLInputElement | HTMLTextAreaElement)?.value
   if (value !== undefined) {
     update(key, value)
   }
@@ -155,12 +161,43 @@ function handleBorderColorChange(position: 'borderTop' | 'borderRight' | 'border
       <a-input type="color" :value="widget.color" @change="e => handleColorChange('color', e)" />
     </a-form-item>
 
-    <a-form-item label="对齐">
+    <a-form-item label="水平对齐">
       <a-select :value="widget.textAlign" @change="v => update('textAlign', v)">
         <a-select-option v-for="align in textAligns" :key="align.value" :value="align.value">
           {{ align.label }}
         </a-select-option>
       </a-select>
+    </a-form-item>
+
+    <a-form-item label="垂直对齐">
+      <a-select :value="widget.verticalAlign || 'middle'" @change="v => update('verticalAlign', v)">
+        <a-select-option v-for="align in verticalAligns" :key="align.value" :value="align.value">
+          {{ align.label }}
+        </a-select-option>
+      </a-select>
+    </a-form-item>
+
+    <a-form-item label="字间距">
+      <a-input-number
+        :value="widget.letterSpacing ?? 0"
+        @change="v => update('letterSpacing', v ?? 0)"
+        :min="-10"
+        :max="100"
+        :step="0.5"
+        style="width: 100%"
+      />
+    </a-form-item>
+
+    <a-form-item label="自定义样式">
+      <a-textarea
+        :value="widget.customCss || ''"
+        @change="e => handleInputChange('customCss', e)"
+        :rows="3"
+        placeholder="示例：line-height: 1.2; text-decoration: underline;"
+      />
+      <div style="font-size: 12px; color: #999; margin-top: 4px">
+        支持 CSS 声明（kebab-case），部分布局属性会被忽略以避免破坏排版
+      </div>
     </a-form-item>
 
     <a-divider orientation="left" style="font-size: 12px">数据绑定</a-divider>
