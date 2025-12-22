@@ -621,10 +621,10 @@ async function handleExportPdf() {
           </a-button>
           <template #overlay>
             <a-menu>
-              <a-menu-item key="html" @click="handleExportHtml">
+              <!-- <a-menu-item key="html" @click="handleExportHtml">
                 <file-text-outlined />
                 导出为 HTML
-              </a-menu-item>
+              </a-menu-item> -->
               <a-menu-item key="pdf" @click="handleExportPdf">
                 <file-pdf-outlined />
                 导出为 PDF

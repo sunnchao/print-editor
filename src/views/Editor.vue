@@ -347,12 +347,12 @@ function handleImport(event: Event) {
                 <a-menu-item key="json" @click="handleExportJson">
                   导出为 JSON
                 </a-menu-item>
-                <a-menu-item key="html" @click="handleExportHtml">
+                <!-- <a-menu-item key="html" @click="handleExportHtml">
                   导出为 HTML（可编辑）
                 </a-menu-item>
                 <a-menu-item key="pdf" @click="handleExportPdf">
                   导出为 PDF
-                </a-menu-item>
+                </a-menu-item> -->
               </a-menu>
             </template>
           </a-dropdown>
