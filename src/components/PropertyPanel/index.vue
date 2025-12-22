@@ -390,7 +390,7 @@ function print() {
             </a-form-item> -->
 
             <!-- 批量打印详细设置，仅在启用时显示 -->
-            <template v-if="editorStore.batchPrint.enabled">
+            <!-- <template v-if="editorStore.batchPrint.enabled"> -->
               <a-form-item label="数据源">
                 <a-select
                   :value="editorStore.batchPrint.dataSourceFile"
@@ -458,7 +458,7 @@ function print() {
                 show-icon
                 style="margin-bottom: 16px"
               />
-            </template>
+            <!-- </template> -->
           </a-form>
         </div>
       </a-tab-pane>

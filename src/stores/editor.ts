@@ -313,8 +313,8 @@ export const useEditorStore = defineStore('editor', () => {
    */
   function resetBatchPrint() {
     batchPrint.value = {
-      enabled: false,
-      printRange: 'all'
+      enabled: true,
+      printRange: 'range'
     }
   }
 
