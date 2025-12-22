@@ -9,6 +9,7 @@ import type { Template, Widget } from '@/types'
 import { MM_TO_PX } from '@/types'
 import { exportAsHtml, downloadHtml } from '@/utils/exportHtml'
 import { exportAsPdf } from '@/utils/exportPdf'
+import { normalizeBatchPrintConfig } from '@/utils/batchPrint'
 import TextWidgetComp from '@/components/widgets/TextWidget.vue'
 import TableWidgetComp from '@/components/widgets/TableWidget.vue'
 import ImageWidgetComp from '@/components/widgets/ImageWidget.vue'
@@ -491,6 +492,9 @@ onMounted(async () => {
     const t = await templateStore.loadTemplate(id)
     if (t) {
       template.value = t
+      if (template.value.batchPrint) {
+        template.value.batchPrint = normalizeBatchPrintConfig(template.value.batchPrint)
+      }
       ensurePreviewDataSource()
     } else {
       message.error('模板不存在')

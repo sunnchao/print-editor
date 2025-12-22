@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { Widget, PaperSize, SnapLine, TableSelection, TableWidget, TableCell, BatchPrintConfig } from '@/types'
 import { PAPER_SIZES } from '@/types'
 import { cloneDeep } from 'lodash-es'
+import { normalizeBatchPrintConfig } from '@/utils/batchPrint'
 
 interface MasterCell {
   row: number
@@ -155,10 +156,7 @@ export const useEditorStore = defineStore('editor', () => {
   const globalForcePageBreak = ref(false) // 全局强制分页设置
   
   // 批量打印配置：用于将模板与数据源结合，生成 N 份打印内容
-  const batchPrint = ref<BatchPrintConfig>({
-    enabled: true,
-    printRange: 'range'
-  })
+  const batchPrint = ref<BatchPrintConfig>(normalizeBatchPrintConfig())
   
   const history = ref<Widget[][]>([])
   const historyIndex = ref(-1)
@@ -305,17 +303,14 @@ export const useEditorStore = defineStore('editor', () => {
    * @param config 批量打印配置（部分更新）
    */
   function setBatchPrint(config: Partial<BatchPrintConfig>) {
-    batchPrint.value = { ...batchPrint.value, ...config }
+    batchPrint.value = normalizeBatchPrintConfig({ ...batchPrint.value, ...config })
   }
 
   /**
    * 重置批量打印配置为默认值
    */
   function resetBatchPrint() {
-    batchPrint.value = {
-      enabled: true,
-      printRange: 'range'
-    }
+    batchPrint.value = normalizeBatchPrintConfig()
   }
 
   function exportTemplate(): string {
