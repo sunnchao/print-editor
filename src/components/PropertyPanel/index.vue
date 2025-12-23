@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { UploadOutlined, DownloadOutlined, PrinterOutlined, SwapOutlined } from '@ant-design/icons-vue'
 import { useEditorStore } from '@/stores/editor'
@@ -21,6 +21,42 @@ const activeTab = ref('properties')
 
 const isCustomPaper = computed(() => editorStore.paperSize.name === '自定义')
 
+// 统一数据源选择：用 fileName 作为唯一 v-model 值，同时同步到两个 store
+const selectedDataSourceFile = computed<string | undefined>({
+  get() {
+    return dataSourceStore.currentDataSource?.fileName ?? editorStore.batchPrint.dataSourceFile
+  },
+  set(fileName) {
+    if (fileName) {
+      dataSourceStore.setCurrentDataSource(fileName)
+      editorStore.setBatchPrint({ dataSourceFile: fileName })
+      return
+    }
+
+    dataSourceStore.currentDataSource = null
+    editorStore.setBatchPrint({ dataSourceFile: undefined })
+  }
+})
+
+watch(
+  () => editorStore.batchPrint.dataSourceFile,
+  (fileName) => {
+    if (!fileName) return
+    if (dataSourceStore.currentDataSource?.fileName === fileName) return
+    if (!dataSourceStore.dataSources.some(ds => ds.fileName === fileName)) return
+    dataSourceStore.setCurrentDataSource(fileName)
+  }
+)
+
+watch(
+  () => dataSourceStore.currentDataSource?.fileName,
+  (fileName) => {
+    if (!fileName) return
+    if (editorStore.batchPrint.dataSourceFile === fileName) return
+    editorStore.setBatchPrint({ dataSourceFile: fileName })
+  }
+)
+
 const propertyComponent = computed(() => {
   if (!editorStore.selectedWidget) return null
   const components: Record<string, any> = {
@@ -41,7 +77,7 @@ const propertyComponent = computed(() => {
  * 获取当前选中数据源的总行数
  */
 const batchPrintTotalRows = computed(() => {
-  const fileName = editorStore.batchPrint.dataSourceFile
+  const fileName = selectedDataSourceFile.value
   if (!fileName) return 0
   const ds = dataSourceStore.dataSources.find(d => d.fileName === fileName)
   if (!ds || ds.columns.length === 0) return 0
@@ -361,40 +397,18 @@ function print() {
             </div>
             
             <a-divider orientation="left" style="font-size: 12px">可用数据列</a-divider>
-            <a-select
-              v-model:value="dataSourceStore.currentDataSource"
+            <!-- <a-select
+              v-model:value="selectedDataSourceFile"
               style="width: 100%; margin-bottom: 8px"
               placeholder="选择数据源"
             >
-              <a-select-option v-for="ds in dataSourceStore.dataSources" :key="ds.fileName" :value="ds">
+              <a-select-option v-for="ds in dataSourceStore.dataSources" :key="ds.fileName" :value="ds.fileName">
                 {{ ds.fileName }}
               </a-select-option>
-            </a-select>
-            
-            <div v-if="dataSourceStore.currentDataSource" class="column-list">
-              <div v-for="col in dataSourceStore.currentDataSource.columns" :key="col.name" class="column-item">
-                <strong>{{ col.name }}</strong>
-              </div>
-            </div>
-          </div>
-
-          <!-- 批量打印设置：用于将模板与数据源结合，生成 N 份打印内容 -->
-          <!-- <a-divider orientation="left" style="font-size: 12px">批量打印</a-divider> -->
-
-          <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
-            <!-- <a-form-item label="启用批量打印">
-              <a-switch
-                :checked="editorStore.batchPrint.enabled"
-                @change="(v: boolean) => editorStore.setBatchPrint({ enabled: v })"
-              />
-            </a-form-item> -->
-
-            <!-- 批量打印详细设置，仅在启用时显示 -->
-            <!-- <template v-if="editorStore.batchPrint.enabled"> -->
-              <a-form-item label="数据源">
+            </a-select> -->
+            <a-form-item label="数据源">
                 <a-select
-                  :value="editorStore.batchPrint.dataSourceFile"
-                  @change="(v: string) => editorStore.setBatchPrint({ dataSourceFile: v })"
+                  v-model:value="selectedDataSourceFile"
                   placeholder="选择数据源"
                   style="width: 100%"
                 >
@@ -407,6 +421,28 @@ function print() {
                   </a-select-option>
                 </a-select>
               </a-form-item>
+            
+            <a-card v-if="dataSourceStore.currentDataSource" class="column-list">
+              <div v-for="col in dataSourceStore.currentDataSource.columns" :key="col.name" class="column-item">
+                <strong>{{ col.name }}</strong>
+              </div>
+            </a-card>
+          </div>
+
+          <!-- 批量打印设置：用于将模板与数据源结合，生成 N 份打印内容 -->
+          <a-divider></a-divider>
+
+          <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
+            <!-- <a-form-item label="启用批量打印">
+              <a-switch
+                :checked="editorStore.batchPrint.enabled"
+                @change="(v: boolean) => editorStore.setBatchPrint({ enabled: v })"
+              />
+            </a-form-item> -->
+
+            <!-- 批量打印详细设置，仅在启用时显示 -->
+            <!-- <template v-if="editorStore.batchPrint.enabled"> -->
+              
 
               <a-form-item label="打印范围">
                 <a-radio-group
@@ -685,7 +721,7 @@ function print() {
 }
 
 .column-list {
-  max-height: 300px;
+  /* max-height: 300px; */
   overflow-y: auto;
 }
 
