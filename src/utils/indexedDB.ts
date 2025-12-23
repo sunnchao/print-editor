@@ -23,7 +23,7 @@ export async function openDB(): Promise<IDBDatabase> {
       resolve(db)
     }
 
-    request.onupgradeneeded = (event) => {
+    request.onupgradeneeded = event => {
       const database = (event.target as IDBOpenDBRequest).result
 
       // 数据源存储

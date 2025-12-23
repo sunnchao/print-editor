@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Template } from '@/types'
-import { saveTemplate, getTemplate, getAllTemplates, deleteTemplate as deleteFromDB } from '@/utils/indexedDB'
+import {
+  saveTemplate,
+  getTemplate,
+  getAllTemplates,
+  deleteTemplate as deleteFromDB
+} from '@/utils/indexedDB'
 
 export const useTemplateStore = defineStore('template', () => {
   const templates = ref<Template[]>([])
@@ -51,7 +56,7 @@ export const useTemplateStore = defineStore('template', () => {
       createdAt: now,
       updatedAt: now
     }
-    
+
     await saveTemplate(template)
     templates.value.unshift(template)
     currentTemplate.value = template
@@ -61,12 +66,12 @@ export const useTemplateStore = defineStore('template', () => {
   async function updateTemplate(template: Template): Promise<void> {
     template.updatedAt = new Date().toISOString()
     await saveTemplate(template)
-    
+
     const index = templates.value.findIndex(t => t.id === template.id)
     if (index !== -1) {
       templates.value[index] = template
     }
-    
+
     if (currentTemplate.value?.id === template.id) {
       currentTemplate.value = template
     }
@@ -75,7 +80,7 @@ export const useTemplateStore = defineStore('template', () => {
   async function duplicateTemplate(id: string): Promise<Template | null> {
     const original = await getTemplate(id)
     if (!original) return null
-    
+
     const now = new Date().toISOString()
     const duplicate: Template = {
       ...original,
@@ -84,7 +89,7 @@ export const useTemplateStore = defineStore('template', () => {
       createdAt: now,
       updatedAt: now
     }
-    
+
     await saveTemplate(duplicate)
     templates.value.unshift(duplicate)
     return duplicate

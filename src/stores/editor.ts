@@ -1,6 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Widget, PaperSize, SnapLine, TableSelection, TableWidget, TableCell, BatchPrintConfig } from '@/types'
+import type {
+  Widget,
+  PaperSize,
+  SnapLine,
+  TableSelection,
+  TableWidget,
+  TableCell,
+  BatchPrintConfig
+} from '@/types'
 import { PAPER_SIZES } from '@/types'
 import { cloneDeep } from 'lodash-es'
 import { normalizeBatchPrintConfig } from '@/utils/batchPrint'
@@ -49,7 +57,7 @@ function buildCellsFromMasters(rows: number, cols: number, masters: MasterCell[]
     Array.from({ length: cols }, () => createDefaultCell())
   )
 
-  const sortedMasters = [...masters].sort((a, b) => (a.row - b.row) || (a.col - b.col))
+  const sortedMasters = [...masters].sort((a, b) => a.row - b.row || a.col - b.col)
 
   for (const master of sortedMasters) {
     if (master.row < 0 || master.col < 0 || master.row >= rows || master.col >= cols) continue
@@ -154,10 +162,10 @@ export const useEditorStore = defineStore('editor', () => {
   const paperSize = ref<PaperSize>(PAPER_SIZES[0])
   const scale = ref(1)
   const globalForcePageBreak = ref(false) // 全局强制分页设置
-  
+
   // 批量打印配置：用于将模板与数据源结合，生成 N 份打印内容
   const batchPrint = ref<BatchPrintConfig>(normalizeBatchPrintConfig())
-  
+
   const history = ref<Widget[][]>([])
   const historyIndex = ref(-1)
   const clipboard = ref<Widget | null>(null)
@@ -224,13 +232,13 @@ export const useEditorStore = defineStore('editor', () => {
     if (id !== selectedWidgetId.value) {
       tableSelection.value = null
     }
-    
+
     selectedWidgetId.value = id
     if (!id) {
       tableSelection.value = null
       return
     }
-    
+
     // 如果选中的不是表格组件，确保表格选区被清除
     const widget = widgets.value.find(w => w.id === id)
     if (!widget || widget.type !== 'table') {
@@ -314,11 +322,15 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function exportTemplate(): string {
-    return JSON.stringify({
-      paperSize: paperSize.value,
-      widgets: widgets.value,
-      globalForcePageBreak: globalForcePageBreak.value
-    }, null, 2)
+    return JSON.stringify(
+      {
+        paperSize: paperSize.value,
+        widgets: widgets.value,
+        globalForcePageBreak: globalForcePageBreak.value
+      },
+      null,
+      2
+    )
   }
 
   function importTemplate(json: string) {
@@ -326,7 +338,8 @@ export const useEditorStore = defineStore('editor', () => {
       const data = JSON.parse(json)
       if (data.paperSize) paperSize.value = data.paperSize
       if (data.widgets) widgets.value = data.widgets
-      if (data.globalForcePageBreak !== undefined) globalForcePageBreak.value = data.globalForcePageBreak
+      if (data.globalForcePageBreak !== undefined)
+        globalForcePageBreak.value = data.globalForcePageBreak
       saveHistory()
     } catch (e) {
       console.error('导入模板失败:', e)
@@ -426,7 +439,9 @@ export const useEditorStore = defineStore('editor', () => {
     const previousSelection = selection ? { ...selection } : null
     const rowHeight = table.rows > 0 ? table.height / table.rows : 0
     const referenceRow = selection
-      ? (position === 'before' ? selection.startRow : selection.endRow)
+      ? position === 'before'
+        ? selection.startRow
+        : selection.endRow
       : rowIndex
     const insertIndex = position === 'before' ? referenceRow : referenceRow + 1
     const rowFractions = getRowFractions(table)
@@ -469,7 +484,9 @@ export const useEditorStore = defineStore('editor', () => {
     const previousSelection = selection ? { ...selection } : null
     const colWidth = table.cols > 0 ? table.width / table.cols : 0
     const referenceCol = selection
-      ? (position === 'before' ? selection.startCol : selection.endCol)
+      ? position === 'before'
+        ? selection.startCol
+        : selection.endCol
       : colIndex
     const insertIndex = position === 'before' ? referenceCol : referenceCol + 1
 
@@ -624,7 +641,7 @@ export const useEditorStore = defineStore('editor', () => {
     paperSize,
     scale,
     globalForcePageBreak,
-    batchPrint,           // 批量打印配置
+    batchPrint, // 批量打印配置
     clipboard,
     addWidget,
     updateWidget,
@@ -639,8 +656,8 @@ export const useEditorStore = defineStore('editor', () => {
     setPaperSize,
     setScale,
     setGlobalForcePageBreak,
-    setBatchPrint,        // 设置批量打印配置
-    resetBatchPrint,      // 重置批量打印配置
+    setBatchPrint, // 设置批量打印配置
+    resetBatchPrint, // 重置批量打印配置
     exportTemplate,
     importTemplate,
     loadWidgets,

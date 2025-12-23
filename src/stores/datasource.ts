@@ -2,7 +2,11 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { DataSource, DataColumn, MergedRange } from '@/types'
 import * as XLSX from 'xlsx'
-import { saveDataSource, getAllDataSources, deleteDataSource as deleteFromDB } from '@/utils/indexedDB'
+import {
+  saveDataSource,
+  getAllDataSources,
+  deleteDataSource as deleteFromDB
+} from '@/utils/indexedDB'
 
 export const useDataSourceStore = defineStore('datasource', () => {
   const dataSources = ref<DataSource[]>([])
@@ -45,7 +49,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
   // 格式化单元格值，处理日期等特殊类型
   function formatCellValue(cell: XLSX.CellObject | undefined): string | number {
     if (!cell) return ''
-    
+
     // 处理日期类型
     // Excel 日期以数字存储（距离1900-01-01的天数）
     // t='d' 表示日期，t='n' 可能也是日期（如果有日期格式）
@@ -53,7 +57,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
       // 直接是日期对象
       return formatDate(cell.v)
     }
-    
+
     if (cell.t === 'n' && typeof cell.v === 'number') {
       // 检查是否是日期格式（通过格式字符串判断）
       const fmt = cell.z ? String(cell.z) : ''
@@ -69,12 +73,12 @@ export const useDataSourceStore = defineStore('datasource', () => {
         }
       }
     }
-    
+
     // 如果有格式化后的文本 w，优先使用（保留 Excel 中显示的格式）
     if (cell.w !== undefined) {
       return cell.w
     }
-    
+
     // 处理其他类型
     const value = cell.v
     if (value === undefined || value === null) return ''
@@ -83,21 +87,27 @@ export const useDataSourceStore = defineStore('datasource', () => {
     if (value instanceof Date) return formatDate(value)
     return String(value)
   }
-  
+
   // 判断格式字符串是否是日期格式
   function isDateFormat(fmt: string): boolean {
     if (!fmt) return false
     // 常见的日期格式标识
     const datePatterns = [
-      /y+/i, /m+/i, /d+/i, /h+/i, /s+/i,
+      /y+/i,
+      /m+/i,
+      /d+/i,
+      /h+/i,
+      /s+/i,
       /\[.*\]/, // 如 [红色]
-      /年/, /月/, /日/
+      /年/,
+      /月/,
+      /日/
     ]
     // 排除纯数字格式
     if (/^[#0,.%]+$/.test(fmt)) return false
     return datePatterns.some(p => p.test(fmt))
   }
-  
+
   // 格式化日期为字符串
   function formatDate(date: Date): string {
     const year = date.getFullYear()
@@ -107,7 +117,12 @@ export const useDataSourceStore = defineStore('datasource', () => {
   }
 
   // 检查某行是否为空行（所有单元格都为空或只有空格）
-  function isEmptyRow(sheet: XLSX.WorkSheet, row: number, startCol: number, endCol: number): boolean {
+  function isEmptyRow(
+    sheet: XLSX.WorkSheet,
+    row: number,
+    startCol: number,
+    endCol: number
+  ): boolean {
     for (let col = startCol; col <= endCol; col++) {
       const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
       const cell = sheet[cellAddress]
@@ -136,7 +151,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
 
-      reader.onload = (e) => {
+      reader.onload = e => {
         try {
           const data = e.target?.result
           if (!data) {
@@ -148,9 +163,9 @@ export const useDataSourceStore = defineStore('datasource', () => {
           // 使用 cellDates 选项让 xlsx 自动解析日期
           const workbook = XLSX.read(data, {
             type: 'array',
-            cellDates: true,  // 启用日期解析
-            cellNF: true,     // 保留数字格式
-            cellText: true    // 生成格式化文本
+            cellDates: true, // 启用日期解析
+            cellNF: true, // 保留数字格式
+            cellText: true // 生成格式化文本
           })
           console.log('工作表列表:', workbook.SheetNames)
 
@@ -168,7 +183,14 @@ export const useDataSourceStore = defineStore('datasource', () => {
           // 智能检测实际数据的最后一行
           const actualEndRow = detectActualRange(sheet, range)
 
-          console.log('定义范围:', sheet['!ref'], '实际数据行:', actualEndRow + 1, '合并单元格:', merges.length)
+          console.log(
+            '定义范围:',
+            sheet['!ref'],
+            '实际数据行:',
+            actualEndRow + 1,
+            '合并单元格:',
+            merges.length
+          )
 
           const columns: DataColumn[] = []
 
@@ -189,10 +211,10 @@ export const useDataSourceStore = defineStore('datasource', () => {
               // 检查是否在合并单元格范围内
               let mergedValue: string | number | null = null
               for (const merge of merges) {
-                if (col >= merge.s.c && col <= merge.e.c &&
-                    row >= merge.s.r && row <= merge.e.r) {
+                if (col >= merge.s.c && col <= merge.e.c && row >= merge.s.r && row <= merge.e.r) {
                   // 获取合并单元格的起始值
-                  const mergeStartCell = sheet[XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c })]
+                  const mergeStartCell =
+                    sheet[XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c })]
                   mergedValue = formatCellValue(mergeStartCell)
 
                   // 记录合并范围（仅记录该列的合并信息）
@@ -231,7 +253,12 @@ export const useDataSourceStore = defineStore('datasource', () => {
             columns
           }
 
-          console.log('Excel 解析完成，列数:', columns.length, '实际数据行数:', columns[0]?.data.length || 0)
+          console.log(
+            'Excel 解析完成，列数:',
+            columns.length,
+            '实际数据行数:',
+            columns[0]?.data.length || 0
+          )
           resolve(dataSource)
         } catch (error) {
           console.error('Excel 解析错误:', error)
@@ -239,7 +266,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
         }
       }
 
-      reader.onerror = (error) => {
+      reader.onerror = error => {
         console.error('文件读取错误:', error)
         reject(new Error('文件读取失败'))
       }
@@ -252,16 +279,16 @@ export const useDataSourceStore = defineStore('datasource', () => {
     try {
       isLoading.value = true
       console.log('开始上传文件:', file.name, '大小:', file.size)
-      
+
       // 检查是否已存在同名文件
       const existingIndex = dataSources.value.findIndex(ds => ds.fileName === file.name)
-      
+
       const dataSource = await parseExcel(file)
-      
+
       // 保存到 IndexedDB（以文件名为 key，实现数据隔离）
       await saveDataSource(dataSource)
       console.log('数据已保存到 IndexedDB:', file.name)
-      
+
       // 更新内存中的数据
       if (existingIndex !== -1) {
         dataSources.value[existingIndex] = dataSource
@@ -269,7 +296,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
         dataSources.value.push(dataSource)
       }
       currentDataSource.value = dataSource
-      
+
       return dataSource
     } catch (error) {
       console.error('Excel 上传处理失败:', error)
@@ -299,7 +326,7 @@ export const useDataSourceStore = defineStore('datasource', () => {
       // 从 IndexedDB 删除
       await deleteFromDB(fileName)
       console.log('从 IndexedDB 删除数据源:', fileName)
-      
+
       // 从内存中删除
       const index = dataSources.value.findIndex(ds => ds.fileName === fileName)
       if (index !== -1) {

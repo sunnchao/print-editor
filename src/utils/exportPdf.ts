@@ -31,7 +31,7 @@ export async function exportAsPdf(
       backgroundColor: '#ffffff',
       imageTimeout: 0,
       // 忽略某些元素
-      ignoreElements: (element) => {
+      ignoreElements: element => {
         return element.classList?.contains('no-print') || false
       }
     })
@@ -114,16 +114,7 @@ export async function exportMultiPagePdf(
       }
 
       // 添加图片
-      pdf.addImage(
-        imgData,
-        'JPEG',
-        0,
-        0,
-        paperSize.width,
-        paperSize.height,
-        undefined,
-        'FAST'
-      )
+      pdf.addImage(imgData, 'JPEG', 0, 0, paperSize.width, paperSize.height, undefined, 'FAST')
     }
 
     // 保存 PDF

@@ -1,6 +1,8 @@
 import type { BatchPrintConfig } from '@/types'
 
-export function normalizeBatchPrintConfig(input?: Partial<BatchPrintConfig> | null): BatchPrintConfig {
+export function normalizeBatchPrintConfig(
+  input?: Partial<BatchPrintConfig> | null
+): BatchPrintConfig {
   const enabled = input?.enabled ?? true
   const printRange: BatchPrintConfig['printRange'] = input?.printRange ?? 'range'
   const dataSourceFile = input?.dataSourceFile
@@ -13,4 +15,3 @@ export function normalizeBatchPrintConfig(input?: Partial<BatchPrintConfig> | nu
 
   return { enabled, dataSourceFile, printRange }
 }
-

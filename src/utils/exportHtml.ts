@@ -1,4 +1,14 @@
-import type { Template, Widget, TextWidget, ImageWidget, TableWidget, LineWidget, RectWidget, BarcodeWidget, QRCodeWidget } from '@/types'
+import type {
+  Template,
+  Widget,
+  TextWidget,
+  ImageWidget,
+  TableWidget,
+  LineWidget,
+  RectWidget,
+  BarcodeWidget,
+  QRCodeWidget
+} from '@/types'
 
 const MM_TO_PX = 3.78
 
@@ -13,7 +23,9 @@ export function exportAsHtml(template: Template, dataSourceStore?: any) {
   const height = paperSize.height * MM_TO_PX
 
   // 生成所有组件的 HTML
-  const widgetsHtml = widgets.map(widget => generateWidgetHtml(widget, dataSourceStore)).join('\n    ')
+  const widgetsHtml = widgets
+    .map(widget => generateWidgetHtml(widget, dataSourceStore))
+    .join('\n    ')
 
   // 生成完整的 HTML 文档
   const html = `<!DOCTYPE html>
@@ -335,7 +347,11 @@ function generateWidgetHtml(widget: Widget, dataSourceStore?: any): string {
 }
 
 // 生成文本组件 HTML
-function generateTextWidgetHtml(widget: TextWidget, baseStyle: string, dataSourceStore?: any): string {
+function generateTextWidgetHtml(
+  widget: TextWidget,
+  baseStyle: string,
+  dataSourceStore?: any
+): string {
   let content = widget.content
 
   // 如果有数据源绑定，尝试获取数据
@@ -362,7 +378,11 @@ function generateImageWidgetHtml(widget: ImageWidget, baseStyle: string): string
 }
 
 // 生成表格组件 HTML
-function generateTableWidgetHtml(widget: TableWidget, baseStyle: string, dataSourceStore?: any): string {
+function generateTableWidgetHtml(
+  widget: TableWidget,
+  baseStyle: string,
+  dataSourceStore?: any
+): string {
   const borderStyle = `border: ${widget.borderWidth}px ${widget.borderStyle || 'solid'} ${widget.borderColor};`
 
   let tableHtml = '<table class="table-widget">'
@@ -398,7 +418,9 @@ function generateTableWidgetHtml(widget: TableWidget, baseStyle: string, dataSou
         cell.color ? `color: ${cell.color}` : '',
         cell.textAlign ? `text-align: ${cell.textAlign}` : '',
         cell.backgroundColor ? `background-color: ${cell.backgroundColor}` : ''
-      ].filter(Boolean).join('; ')
+      ]
+        .filter(Boolean)
+        .join('; ')
 
       const rowSpan = cell.rowSpan && cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ''
       const colSpan = cell.colSpan && cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''
@@ -430,7 +452,11 @@ function generateRectWidgetHtml(widget: RectWidget, baseStyle: string): string {
 }
 
 // 生成条形码组件 HTML
-function generateBarcodeWidgetHtml(widget: BarcodeWidget, baseStyle: string, dataSourceStore?: any): string {
+function generateBarcodeWidgetHtml(
+  widget: BarcodeWidget,
+  baseStyle: string,
+  dataSourceStore?: any
+): string {
   let value = widget.value
 
   if (widget.dataSource && dataSourceStore) {
@@ -451,7 +477,11 @@ function generateBarcodeWidgetHtml(widget: BarcodeWidget, baseStyle: string, dat
 }
 
 // 生成二维码组件 HTML
-function generateQRCodeWidgetHtml(widget: QRCodeWidget, baseStyle: string, dataSourceStore?: any): string {
+function generateQRCodeWidgetHtml(
+  widget: QRCodeWidget,
+  baseStyle: string,
+  dataSourceStore?: any
+): string {
   let value = widget.value
 
   if (widget.dataSource && dataSourceStore) {

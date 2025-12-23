@@ -135,7 +135,14 @@ export interface RectWidget extends WidgetBase {
   borderRadius: number
 }
 
-export type Widget = TextWidget | ImageWidget | TableWidget | BarcodeWidget | QRCodeWidget | LineWidget | RectWidget
+export type Widget =
+  | TextWidget
+  | ImageWidget
+  | TableWidget
+  | BarcodeWidget
+  | QRCodeWidget
+  | LineWidget
+  | RectWidget
 
 export interface DataSource {
   fileName: string
@@ -188,7 +195,7 @@ export const PAPER_SIZES: PaperSize[] = [
   //   三联纸：215 x 93
   // 四联纸：215 x 70
   { name: '三联纸', width: 215, height: 93 },
-  { name: '四联纸', width: 215, height: 70 },
+  { name: '四联纸', width: 215, height: 70 }
   // { name: '自定义', width: 210, height: 297 }
 ]
 
@@ -197,11 +204,11 @@ export const PAPER_SIZES: PaperSize[] = [
  * 用于将模板与数据源结合，生成多份打印内容
  */
 export interface BatchPrintConfig {
-  enabled: boolean              // 是否启用批量打印
-  dataSourceFile?: string       // 关联的数据源文件名
-  printRange: 'all' | 'range'   // 打印范围：全部 或 指定范围
-  rangeStart?: number           // 起始行索引（从 0 开始）
-  rangeEnd?: number             // 结束行索引
+  enabled: boolean // 是否启用批量打印
+  dataSourceFile?: string // 关联的数据源文件名
+  printRange: 'all' | 'range' // 打印范围：全部 或 指定范围
+  rangeStart?: number // 起始行索引（从 0 开始）
+  rangeEnd?: number // 结束行索引
 }
 
 export interface Template {
@@ -214,7 +221,7 @@ export interface Template {
   createdAt: string
   updatedAt: string
   globalForcePageBreak?: boolean // 全局强制分页（每个组件独占一页）
-  batchPrint?: BatchPrintConfig  // 批量打印配置
+  batchPrint?: BatchPrintConfig // 批量打印配置
 }
 
 export interface SnapLine {
