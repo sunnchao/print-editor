@@ -9,7 +9,6 @@ import type {
   TableCell,
   BatchPrintConfig
 } from '@/types'
-import { PAPER_SIZES } from '@/types'
 import { cloneDeep } from 'lodash-es'
 import { normalizeBatchPrintConfig } from '@/utils/batchPrint'
 
@@ -159,7 +158,7 @@ function getRowFractions(table: TableWidget): number[] {
 export const useEditorStore = defineStore('editor', () => {
   const widgets = ref<Widget[]>([])
   const selectedWidgetId = ref<string | null>(null)
-  const paperSize = ref<PaperSize>(PAPER_SIZES[0])
+  const paperSize = ref<PaperSize | null>(null)
   const scale = ref(1)
   const globalForcePageBreak = ref(false) // 全局强制分页设置
 
@@ -294,7 +293,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  function setPaperSize(size: PaperSize) {
+  function setPaperSize(size: PaperSize | null) {
     paperSize.value = size
   }
 

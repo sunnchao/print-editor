@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted } from 'vue'
+  import { message } from 'ant-design-vue'
   import { useEditorStore } from '@/stores/editor'
   import type {
     Widget,
@@ -25,19 +26,22 @@
   const PAPER_OFFSET = 40 // 纸张距离0刻度线的偏移量（像素）
   const RULER_EXTENSION = 200 // 刻度尺延伸长度（像素）
 
-  const paperWidth = computed(() => editorStore.paperSize.width * MM_TO_PX)
-  const paperHeight = computed(() => editorStore.paperSize.height * MM_TO_PX)
+  // 是否已选择画布大小
+  const hasPaperSize = computed(() => !!editorStore.paperSize)
+
+  const paperWidth = computed(() => (editorStore.paperSize?.width || 210) * MM_TO_PX)
+  const paperHeight = computed(() => (editorStore.paperSize?.height || 297) * MM_TO_PX)
 
   // 装订线宽度（像素）
-  const gutterLeftPx = computed(() => (editorStore.paperSize.gutterLeft || 0) * MM_TO_PX)
-  const gutterRightPx = computed(() => (editorStore.paperSize.gutterRight || 0) * MM_TO_PX)
+  const gutterLeftPx = computed(() => (editorStore.paperSize?.gutterLeft || 0) * MM_TO_PX)
+  const gutterRightPx = computed(() => (editorStore.paperSize?.gutterRight || 0) * MM_TO_PX)
 
   // 页眉页脚内容
-  const headerText = computed(() => editorStore.paperSize.header || '')
-  const footerText = computed(() => editorStore.paperSize.footer || '')
+  const headerText = computed(() => editorStore.paperSize?.header || '')
+  const footerText = computed(() => editorStore.paperSize?.footer || '')
 
   // 水印配置
-  const watermark = computed(() => editorStore.paperSize.watermark)
+  const watermark = computed(() => editorStore.paperSize?.watermark)
 
   // 刻度尺的总长度（纸张 + 左侧偏移 + 右侧延伸）
   const rulerWidth = computed(() => paperWidth.value + PAPER_OFFSET + RULER_EXTENSION)
@@ -141,6 +145,13 @@
 
   function onDrop(e: DragEvent) {
     e.preventDefault()
+
+    // 检查是否已选择画布大小
+    if (!editorStore.paperSize) {
+      message.warning('请先选择画布大小')
+      return
+    }
+
     const widgetType = e.dataTransfer?.getData('widgetType')
     if (!widgetType || !canvasRef.value) return
 
@@ -455,71 +466,86 @@
           <div
             ref="canvasRef"
             class="canvas-paper"
+            :class="{ 'no-paper-size': !hasPaperSize }"
             :style="paperStyle"
             @drop="onDrop"
             @dragover="onDragOver"
           >
-            <!-- 左装订线 -->
-            <div v-if="gutterLeftPx > 0" :style="gutterStyle.left" class="gutter-area gutter-left">
-              <span class="gutter-label">装订线</span>
-            </div>
-
-            <!-- 右装订线 -->
-            <div
-              v-if="gutterRightPx > 0"
-              :style="gutterStyle.right"
-              class="gutter-area gutter-right"
-            >
-              <span class="gutter-label">装订线</span>
-            </div>
-
-            <!-- 页眉 -->
-            <div v-if="headerText" class="page-header">
-              <span class="page-header-text">{{ headerText }}</span>
-            </div>
-
-            <!-- 页脚 -->
-            <div v-if="footerText" class="page-footer">
-              <span class="page-footer-text">{{ footerText }}</span>
-            </div>
-
-            <!-- 水印 -->
-            <div v-if="watermark && watermark.text" class="watermark-container">
-              <div
-                v-for="i in 20"
-                :key="i"
-                class="watermark-text"
-                :style="{
-                  color: watermark.color,
-                  opacity: watermark.opacity,
-                  transform: `rotate(${watermark.angle}deg)`,
-                  fontSize: `${watermark.fontSize}px`
-                }"
-              >
-                {{ watermark.text }}
+            <!-- 未选择画布大小时的提示 -->
+            <div v-if="!hasPaperSize" class="paper-size-hint">
+              <div class="hint-content">
+                <span class="hint-icon">📄</span>
+                <span class="hint-text">请在右侧属性面板选择画布大小</span>
               </div>
             </div>
 
-            <WidgetWrapper
-              v-for="widget in editorStore.widgets"
-              :key="widget.id"
-              :widget="widget"
-              @contextmenu="onContextMenu($event, widget)"
-            />
+            <template v-else>
+              <!-- 左装订线 -->
+              <div
+                v-if="gutterLeftPx > 0"
+                :style="gutterStyle.left"
+                class="gutter-area gutter-left"
+              >
+                <span class="gutter-label">装订线</span>
+              </div>
 
-            <!-- 对齐线 -->
-            <div
-              v-for="(line, index) in editorStore.snapLines"
-              :key="index"
-              class="snap-line"
-              :class="line.type"
-              :style="{
-                left: line.type === 'vertical' ? `${line.position}px` : 0,
-                top: line.type === 'horizontal' ? `${line.position}px` : 0,
-                width: line.type === 'vertical' ? '1px' : '100%',
-                height: line.type === 'horizontal' ? '1px' : '100%'
-              }"
-            ></div>
+              <!-- 右装订线 -->
+              <div
+                v-if="gutterRightPx > 0"
+                :style="gutterStyle.right"
+                class="gutter-area gutter-right"
+              >
+                <span class="gutter-label">装订线</span>
+              </div>
+
+              <!-- 页眉 -->
+              <div v-if="headerText" class="page-header">
+                <span class="page-header-text">{{ headerText }}</span>
+              </div>
+
+              <!-- 页脚 -->
+              <div v-if="footerText" class="page-footer">
+                <span class="page-footer-text">{{ footerText }}</span>
+              </div>
+
+              <!-- 水印 -->
+              <div v-if="watermark && watermark.text" class="watermark-container">
+                <div
+                  v-for="i in 20"
+                  :key="i"
+                  class="watermark-text"
+                  :style="{
+                    color: watermark.color,
+                    opacity: watermark.opacity,
+                    transform: `rotate(${watermark.angle}deg)`,
+                    fontSize: `${watermark.fontSize}px`
+                  }"
+                >
+                  {{ watermark.text }}
+                </div>
+              </div>
+
+              <WidgetWrapper
+                v-for="widget in editorStore.widgets"
+                :key="widget.id"
+                :widget="widget"
+                @contextmenu="onContextMenu($event, widget)"
+              />
+
+              <!-- 对齐线 -->
+              <div
+                v-for="(line, index) in editorStore.snapLines"
+                :key="index"
+                class="snap-line"
+                :class="line.type"
+                :style="{
+                  left: line.type === 'vertical' ? `${line.position}px` : 0,
+                  top: line.type === 'horizontal' ? `${line.position}px` : 0,
+                  width: line.type === 'vertical' ? '1px' : '100%',
+                  height: line.type === 'horizontal' ? '1px' : '100%'
+                }"
+              ></div>
+            </template>
           </div>
         </div>
       </div>
@@ -831,5 +857,38 @@
     white-space: nowrap;
     user-select: none;
     transform-origin: center;
+  }
+
+  .canvas-paper.no-paper-size {
+    background: #fafafa;
+    background-image: none;
+    border: 2px dashed #d9d9d9;
+  }
+
+  .paper-size-hint {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hint-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: #999;
+  }
+
+  .hint-icon {
+    font-size: 48px;
+  }
+
+  .hint-text {
+    font-size: 14px;
   }
 </style>

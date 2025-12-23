@@ -43,7 +43,7 @@
 
   function nudgeSelectedWidget(dxMm: number, dyMm: number) {
     const widget = editorStore.selectedWidget
-    if (!widget || widget.locked) return
+    if (!widget || widget.locked || !editorStore.paperSize) return
 
     const paperWidth = editorStore.paperSize.width
     const paperHeight = editorStore.paperSize.height
@@ -101,7 +101,7 @@
       const template = await templateStore.loadTemplate(id)
       if (template) {
         templateName.value = template.name
-        editorStore.setPaperSize(template.paperSize)
+        editorStore.setPaperSize(template.paperSize ?? null)
         editorStore.loadWidgets(template.widgets)
         if (template.globalForcePageBreak !== undefined) {
           editorStore.setGlobalForcePageBreak(template.globalForcePageBreak)
@@ -119,6 +119,7 @@
     } else {
       // 新建模板
       editorStore.clearWidgets()
+      editorStore.setPaperSize(null) // 重置画布大小
       editorStore.resetBatchPrint() // 重置批量打印配置
     }
 
@@ -139,7 +140,7 @@
         const template = await templateStore.loadTemplate(newId as string)
         if (template) {
           templateName.value = template.name
-          editorStore.setPaperSize(template.paperSize)
+          editorStore.setPaperSize(template.paperSize ?? null)
           editorStore.loadWidgets(template.widgets)
           if (template.globalForcePageBreak !== undefined) {
             editorStore.setGlobalForcePageBreak(template.globalForcePageBreak)
@@ -154,6 +155,11 @@
   }
 
   async function handleSave() {
+    if (!editorStore.paperSize) {
+      message.warning('请选择画布大小')
+      return
+    }
+
     try {
       isSaving.value = true
 
@@ -189,6 +195,10 @@
   }
 
   function handlePreview() {
+    if (!editorStore.paperSize) {
+      message.warning('请选择画布大小')
+      return
+    }
     if (!editorStore.batchPrint.dataSourceFile) {
       message.warning('请选择数据源')
       return
@@ -207,6 +217,10 @@
   const isPrinting = ref(false)
 
   async function handlePrint() {
+    if (!editorStore.paperSize) {
+      message.warning('请选择画布大小')
+      return
+    }
     if (!templateId.value) {
       message.warning('请先保存模板后再打印')
       return

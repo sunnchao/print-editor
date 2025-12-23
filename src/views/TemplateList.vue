@@ -175,7 +175,7 @@
           <template #cover>
             <div class="template-thumbnail" @click="handleEdit(template.id)">
               <file-text-outlined class="thumbnail-icon" />
-              <div class="paper-size">{{ template.paperSize.name }}</div>
+              <div class="paper-size">{{ template.paperSize?.name || '未选择' }}</div>
             </div>
           </template>
 

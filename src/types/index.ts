@@ -215,7 +215,7 @@ export interface Template {
   id: string
   name: string
   description?: string
-  paperSize: PaperSize
+  paperSize?: PaperSize // 可选，新建模板时不设置
   widgets: Widget[]
   thumbnail?: string
   createdAt: string

@@ -24,7 +24,7 @@
 
   const activeTab = ref('properties')
 
-  const isCustomPaper = computed(() => editorStore.paperSize.name === '自定义')
+  const isCustomPaper = computed(() => editorStore.paperSize?.name === '自定义')
 
   // 统一数据源选择：只保留 batchPrint 的 store 作为单一数据源选择状态
   watch(
@@ -106,6 +106,7 @@
 
   function handleCustomWidthChange(width: number | null) {
     if (width === null) return
+    if (!editorStore.paperSize) return
     editorStore.setPaperSize({
       name: '自定义',
       width,
@@ -115,6 +116,7 @@
 
   function handleCustomHeightChange(height: number | null) {
     if (height === null) return
+    if (!editorStore.paperSize) return
     editorStore.setPaperSize({
       name: '自定义',
       width: editorStore.paperSize.width,
@@ -124,6 +126,7 @@
 
   // 交换宽高（横竖切换）
   function swapPaperSize() {
+    if (!editorStore.paperSize) return
     editorStore.setPaperSize({
       name: '自定义',
       width: editorStore.paperSize.height,
@@ -210,6 +213,7 @@
 
   // 处理装订线变化
   function handleGutterChange(key: 'gutterLeft' | 'gutterRight', value: number | null) {
+    if (!editorStore.paperSize) return
     if (value === null || value === undefined) return
     editorStore.setPaperSize({
       ...editorStore.paperSize,
@@ -219,6 +223,7 @@
 
   // 处理页眉变化
   function handleHeaderChange(e: Event) {
+    if (!editorStore.paperSize) return
     const value = (e.target as HTMLInputElement)?.value
     if (value !== undefined) {
       editorStore.setPaperSize({
@@ -230,6 +235,7 @@
 
   // 处理页脚变化
   function handleFooterChange(e: Event) {
+    if (!editorStore.paperSize) return
     const value = (e.target as HTMLInputElement)?.value
     if (value !== undefined) {
       editorStore.setPaperSize({
@@ -241,6 +247,7 @@
 
   // 处理水印变化
   function handleWatermarkChange(key: 'text' | 'opacity' | 'angle' | 'fontSize', value: any) {
+    if (!editorStore.paperSize) return
     if (value === undefined) return
 
     const currentWatermark = editorStore.paperSize.watermark || {
@@ -267,6 +274,7 @@
 
   // 处理水印颜色变化
   function handleWatermarkColorChange(e: Event) {
+    if (!editorStore.paperSize) return
     const value = (e.target as HTMLInputElement)?.value
     if (value !== undefined) {
       const currentWatermark = editorStore.paperSize.watermark || {
@@ -288,6 +296,10 @@
   }
 
   function print() {
+    if (!editorStore.paperSize) {
+      message.warning('请选择画布大小')
+      return
+    }
     // 在打印前动态设置画布大小
     const { width, height } = editorStore.paperSize
 
@@ -516,176 +528,190 @@
         <div class="panel-content">
           <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
             <a-form-item label="画布大小">
-              <a-select :value="editorStore.paperSize.name" @change="handlePaperSizeChange">
+              <a-select :value="editorStore.paperSize?.name" @change="handlePaperSizeChange">
                 <a-select-option v-for="size in PAPER_SIZES" :key="size.name" :value="size.name">
                   {{ size.name }} ({{ size.width }}x{{ size.height }}mm)
                 </a-select-option>
               </a-select>
             </a-form-item>
 
-            <template v-if="isCustomPaper">
-              <a-form-item label="快捷尺寸">
-                <a-select
-                  placeholder="选择预设尺寸"
-                  :value="undefined"
-                  style="width: 100%"
-                  @change="handlePresetChange"
-                >
-                  <a-select-option
-                    v-for="preset in customPresets"
-                    :key="preset.label"
-                    :value="preset.label"
+            <template v-if="editorStore.paperSize">
+              <template v-if="isCustomPaper">
+                <a-form-item label="快捷尺寸">
+                  <a-select
+                    placeholder="选择预设尺寸"
+                    :value="undefined"
+                    style="width: 100%"
+                    @change="handlePresetChange"
                   >
-                    {{ preset.label }}
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
+                    <a-select-option
+                      v-for="preset in customPresets"
+                      :key="preset.label"
+                      :value="preset.label"
+                    >
+                      {{ preset.label }}
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
 
-              <a-form-item label="宽度 (mm)">
+                <a-form-item label="宽度 (mm)">
+                  <a-input-number
+                    :value="editorStore.paperSize.width"
+                    :min="50"
+                    :max="1000"
+                    :step="1"
+                    style="width: 100%"
+                    placeholder="输入宽度"
+                    @change="handleCustomWidthChange"
+                  />
+                </a-form-item>
+
+                <a-form-item label="高度 (mm)">
+                  <a-input-number
+                    :value="editorStore.paperSize.height"
+                    :min="50"
+                    :max="1000"
+                    :step="1"
+                    style="width: 100%"
+                    placeholder="输入高度"
+                    @change="handleCustomHeightChange"
+                  />
+                </a-form-item>
+
+                <a-form-item label="方向切换">
+                  <a-button block @click="swapPaperSize">
+                    <template #icon>
+                      <swap-outlined />
+                    </template>
+                    横竖切换 ({{ editorStore.paperSize.width }}x{{
+                      editorStore.paperSize.height
+                    }}mm)
+                  </a-button>
+                </a-form-item>
+
+                <a-alert
+                  message="当前尺寸"
+                  :description="`宽: ${editorStore.paperSize.width}mm, 高: ${editorStore.paperSize.height}mm`"
+                  type="info"
+                  show-icon
+                  style="margin-bottom: 16px"
+                />
+              </template>
+
+              <a-divider orientation="left" style="font-size: 12px">装订线设置</a-divider>
+
+              <a-form-item label="左装订线 (mm)">
                 <a-input-number
-                  :value="editorStore.paperSize.width"
-                  :min="50"
-                  :max="1000"
+                  :value="editorStore.paperSize.gutterLeft || 0"
+                  :min="0"
+                  :max="50"
                   :step="1"
                   style="width: 100%"
-                  placeholder="输入宽度"
-                  @change="handleCustomWidthChange"
+                  placeholder="左侧装订线宽度"
+                  @change="(v: number | null) => handleGutterChange('gutterLeft', v)"
                 />
               </a-form-item>
 
-              <a-form-item label="高度 (mm)">
+              <a-form-item label="右装订线 (mm)">
                 <a-input-number
-                  :value="editorStore.paperSize.height"
-                  :min="50"
-                  :max="1000"
+                  :value="editorStore.paperSize.gutterRight || 0"
+                  :min="0"
+                  :max="50"
                   :step="1"
                   style="width: 100%"
-                  placeholder="输入高度"
-                  @change="handleCustomHeightChange"
+                  placeholder="右侧装订线宽度"
+                  @change="(v: number | null) => handleGutterChange('gutterRight', v)"
                 />
               </a-form-item>
 
-              <a-form-item label="方向切换">
-                <a-button block @click="swapPaperSize">
-                  <template #icon>
-                    <swap-outlined />
-                  </template>
-                  横竖切换 ({{ editorStore.paperSize.width }}x{{ editorStore.paperSize.height }}mm)
-                </a-button>
+              <a-divider orientation="left" style="font-size: 12px">页眉页脚</a-divider>
+
+              <a-form-item label="页眉内容">
+                <a-input
+                  :value="editorStore.paperSize.header || ''"
+                  placeholder="输入页眉文字"
+                  @change="handleHeaderChange"
+                />
               </a-form-item>
 
-              <a-alert
-                message="当前尺寸"
-                :description="`宽: ${editorStore.paperSize.width}mm, 高: ${editorStore.paperSize.height}mm`"
-                type="info"
-                show-icon
-                style="margin-bottom: 16px"
-              />
+              <a-form-item label="页脚内容">
+                <a-input
+                  :value="editorStore.paperSize.footer || ''"
+                  placeholder="输入页脚文字"
+                  @change="handleFooterChange"
+                />
+              </a-form-item>
+
+              <a-divider orientation="left" style="font-size: 12px">水印设置</a-divider>
+
+              <a-form-item label="水印文字">
+                <a-input
+                  :value="editorStore.paperSize.watermark?.text || ''"
+                  placeholder="输入水印文字"
+                  @change="handleWatermarkChange('text', $event)"
+                />
+              </a-form-item>
+
+              <a-form-item label="水印颜色">
+                <a-input
+                  type="color"
+                  :value="editorStore.paperSize.watermark?.color || '#000000'"
+                  @change="handleWatermarkColorChange"
+                />
+              </a-form-item>
+
+              <a-form-item label="透明度">
+                <a-slider
+                  :value="(editorStore.paperSize.watermark?.opacity ?? 0.1) * 100"
+                  :min="0"
+                  :max="100"
+                  :step="5"
+                  :tooltip-formatter="(v: number) => `${v}%`"
+                  @change="(v: number) => handleWatermarkChange('opacity', v / 100)"
+                />
+              </a-form-item>
+
+              <a-form-item label="旋转角度">
+                <a-slider
+                  :value="editorStore.paperSize.watermark?.angle ?? -45"
+                  :min="-180"
+                  :max="180"
+                  :step="15"
+                  :tooltip-formatter="(v: number) => `${v}°`"
+                  @change="(v: number) => handleWatermarkChange('angle', v)"
+                />
+              </a-form-item>
+
+              <a-form-item label="字体大小">
+                <a-input-number
+                  :value="editorStore.paperSize.watermark?.fontSize ?? 12"
+                  :min="12"
+                  :max="200"
+                  :step="4"
+                  style="width: 100%"
+                  @change="(v: number | null) => v !== null && handleWatermarkChange('fontSize', v)"
+                />
+              </a-form-item>
+
+              <a-form-item label="缩放">
+                <a-slider
+                  :value="editorStore.scale * 100"
+                  :min="25"
+                  :max="200"
+                  @change="(v: number) => editorStore.setScale(v / 100)"
+                />
+              </a-form-item>
             </template>
 
-            <a-divider orientation="left" style="font-size: 12px">装订线设置</a-divider>
-
-            <a-form-item label="左装订线 (mm)">
-              <a-input-number
-                :value="editorStore.paperSize.gutterLeft || 0"
-                :min="0"
-                :max="50"
-                :step="1"
-                style="width: 100%"
-                placeholder="左侧装订线宽度"
-                @change="(v: number | null) => handleGutterChange('gutterLeft', v)"
+            <template v-else>
+              <a-alert
+                message="画布尚未配置"
+                description="请选择画布大小以开启配置项"
+                type="info"
+                show-icon
+                style="margin-top: 16px"
               />
-            </a-form-item>
-
-            <a-form-item label="右装订线 (mm)">
-              <a-input-number
-                :value="editorStore.paperSize.gutterRight || 0"
-                :min="0"
-                :max="50"
-                :step="1"
-                style="width: 100%"
-                placeholder="右侧装订线宽度"
-                @change="(v: number | null) => handleGutterChange('gutterRight', v)"
-              />
-            </a-form-item>
-
-            <a-divider orientation="left" style="font-size: 12px">页眉页脚</a-divider>
-
-            <a-form-item label="页眉内容">
-              <a-input
-                :value="editorStore.paperSize.header || ''"
-                placeholder="输入页眉文字"
-                @change="handleHeaderChange"
-              />
-            </a-form-item>
-
-            <a-form-item label="页脚内容">
-              <a-input
-                :value="editorStore.paperSize.footer || ''"
-                placeholder="输入页脚文字"
-                @change="handleFooterChange"
-              />
-            </a-form-item>
-
-            <a-divider orientation="left" style="font-size: 12px">水印设置</a-divider>
-
-            <a-form-item label="水印文字">
-              <a-input
-                :value="editorStore.paperSize.watermark?.text || ''"
-                placeholder="输入水印文字"
-                @change="handleWatermarkChange('text', $event)"
-              />
-            </a-form-item>
-
-            <a-form-item label="水印颜色">
-              <a-input
-                type="color"
-                :value="editorStore.paperSize.watermark?.color || '#000000'"
-                @change="handleWatermarkColorChange"
-              />
-            </a-form-item>
-
-            <a-form-item label="透明度">
-              <a-slider
-                :value="(editorStore.paperSize.watermark?.opacity ?? 0.1) * 100"
-                :min="0"
-                :max="100"
-                :step="5"
-                :tooltip-formatter="(v: number) => `${v}%`"
-                @change="(v: number) => handleWatermarkChange('opacity', v / 100)"
-              />
-            </a-form-item>
-
-            <a-form-item label="旋转角度">
-              <a-slider
-                :value="editorStore.paperSize.watermark?.angle ?? -45"
-                :min="-180"
-                :max="180"
-                :step="15"
-                :tooltip-formatter="(v: number) => `${v}°`"
-                @change="(v: number) => handleWatermarkChange('angle', v)"
-              />
-            </a-form-item>
-
-            <a-form-item label="字体大小">
-              <a-input-number
-                :value="editorStore.paperSize.watermark?.fontSize ?? 12"
-                :min="12"
-                :max="200"
-                :step="4"
-                style="width: 100%"
-                @change="(v: number | null) => v !== null && handleWatermarkChange('fontSize', v)"
-              />
-            </a-form-item>
-
-            <a-form-item label="缩放">
-              <a-slider
-                :value="editorStore.scale * 100"
-                :min="25"
-                :max="200"
-                @change="(v: number) => editorStore.setScale(v / 100)"
-              />
-            </a-form-item>
+            </template>
           </a-form>
 
           <a-divider orientation="left" style="font-size: 12px">模板操作</a-divider>

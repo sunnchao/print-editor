@@ -566,6 +566,13 @@
     if (id) {
       const t = await templateStore.loadTemplate(id)
       if (t) {
+        // 检查是否已选择画布大小
+        if (!t.paperSize) {
+          message.error('请先选择画布大小')
+          router.push(`/editor/${id}`)
+          isLoading.value = false
+          return
+        }
         template.value = t
         if (template.value.batchPrint) {
           template.value.batchPrint = normalizeBatchPrintConfig(template.value.batchPrint)

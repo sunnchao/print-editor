@@ -51,7 +51,7 @@ export const useTemplateStore = defineStore('template', () => {
       id: generateId(),
       name,
       description,
-      paperSize: { name: 'A4', width: 210, height: 297 },
+      // paperSize 不设置默认值，新建模板时需要用户选择
       widgets: [],
       createdAt: now,
       updatedAt: now
