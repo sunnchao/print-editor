@@ -8,8 +8,10 @@
     EyeOutlined,
     CopyOutlined,
     DeleteOutlined,
-    FileTextOutlined
+    FileTextOutlined,
+    UploadOutlined
   } from '@ant-design/icons-vue'
+  import type { Template } from '@/types'
   import { useTemplateStore } from '@/stores/template'
 
   const router = useRouter()
@@ -18,6 +20,7 @@
   const createModalVisible = ref(false)
   const newTemplateName = ref('')
   const newTemplateDesc = ref('')
+  const fileInputRef = ref<HTMLInputElement | null>(null)
 
   onMounted(() => {
     templateStore.loadTemplates()
@@ -83,6 +86,52 @@
     })
   }
 
+  function triggerImport() {
+    fileInputRef.value?.click()
+  }
+
+  async function handleImport(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = async e => {
+      try {
+        const json = e.target?.result as string
+        const data = JSON.parse(json) as Partial<Template>
+
+        // 创建新模板
+        const templateName = data.name || file.name.replace(/\.json$/, '')
+        const template = await templateStore.createTemplate(templateName)
+
+        // 更新模板数据
+        if (data.paperSize) {
+          template.paperSize = data.paperSize
+        }
+        if (data.widgets) {
+          template.widgets = data.widgets
+        }
+        if (data.globalForcePageBreak !== undefined) {
+          template.globalForcePageBreak = data.globalForcePageBreak
+        }
+        if (data.batchPrint) {
+          template.batchPrint = data.batchPrint
+        }
+
+        await templateStore.updateTemplate(template)
+        message.success('模板导入成功')
+      } catch (err) {
+        message.error('导入失败: 文件格式错误')
+      }
+    }
+    reader.readAsText(file)
+
+    // 清空 input 以便重复选择同一文件
+    if (fileInputRef.value) {
+      fileInputRef.value.value = ''
+    }
+  }
+
   function formatDate(dateStr: string): string {
     const date = new Date(dateStr)
     return date.toLocaleString('zh-CN', {
@@ -99,10 +148,16 @@
   <div class="template-list-page">
     <div class="page-header">
       <h1>打印模板管理</h1>
-      <a-button type="primary" @click="showCreateModal">
-        <plus-outlined />
-        新建模板
-      </a-button>
+      <a-space>
+        <a-button type="primary" @click="showCreateModal">
+          <plus-outlined />
+          新建模板
+        </a-button>
+        <a-button @click="triggerImport">
+          <upload-outlined />
+          导入模板
+        </a-button>
+      </a-space>
     </div>
 
     <a-spin :spinning="templateStore.isLoading">
@@ -174,6 +229,15 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 隐藏的文件输入 -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept=".json"
+      style="display: none"
+      @change="handleImport"
+    />
   </div>
 </template>
 

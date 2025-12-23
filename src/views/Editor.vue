@@ -395,7 +395,7 @@
           <a-divider type="vertical" />
           <a-button @click="triggerImport">
             <upload-outlined />
-            导入
+            导入模版
           </a-button>
           <a-dropdown>
             <a-button>
