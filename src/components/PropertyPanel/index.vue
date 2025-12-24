@@ -7,14 +7,15 @@
     PrinterOutlined,
     SwapOutlined
   } from '@ant-design/icons-vue'
-  import { useEditorStore } from '@/stores/editor'
-  import { useDataSourceStore } from '@/stores/datasource'
-  import { PAPER_SIZES } from '@/types'
-  import type { UploadChangeParam } from 'ant-design-vue'
-  import TextProperties from './TextProperties.vue'
-  import TableProperties from './TableProperties.vue'
-  import ImageProperties from './ImageProperties.vue'
-  import LineProperties from './LineProperties.vue'
+	  import { useEditorStore } from '@/stores/editor'
+	  import { useDataSourceStore } from '@/stores/datasource'
+	  import { PAPER_SIZES } from '@/types'
+	  import type { UploadChangeParam } from 'ant-design-vue'
+	  import { getWidgetCode, getWidgetTypeLabel } from '@/utils/widgetCode'
+	  import TextProperties from './TextProperties.vue'
+	  import TableProperties from './TableProperties.vue'
+	  import ImageProperties from './ImageProperties.vue'
+	  import LineProperties from './LineProperties.vue'
   import RectProperties from './RectProperties.vue'
   import BarcodeProperties from './BarcodeProperties.vue'
   import QRCodeProperties from './QRCodeProperties.vue'
@@ -22,7 +23,7 @@
   const editorStore = useEditorStore()
   const dataSourceStore = useDataSourceStore()
 
-  const activeTab = ref('properties')
+	  const activeTab = ref('properties')
 
   const isCustomPaper = computed(() => editorStore.paperSize?.name === '自定义')
 
@@ -51,7 +52,7 @@
     return cols.map(c => c.name).join('，')
   })
 
-  const propertyComponent = computed(() => {
+	  const propertyComponent = computed(() => {
     if (!editorStore.selectedWidget) return null
     const components: Record<string, any> = {
       text: TextProperties,
@@ -62,8 +63,21 @@
       barcode: BarcodeProperties,
       qrcode: QRCodeProperties
     }
-    return components[editorStore.selectedWidget.type]
-  })
+	    return components[editorStore.selectedWidget.type]
+	  })
+
+	  const selectedWidgetCode = computed(() => {
+	    if (!editorStore.selectedWidget) return ''
+	    return getWidgetCode(editorStore.selectedWidget)
+	  })
+
+	  const usedWidgets = computed(() => {
+	    return [...editorStore.widgets].sort((a, b) => a.zIndex - b.zIndex)
+	  })
+
+	  function handleSelectWidgetFromList(id: string) {
+	    editorStore.selectWidget(id)
+	  }
 
   // ========== 批量打印相关计算属性 ==========
 
@@ -332,7 +346,7 @@
           <template v-if="editorStore.selectedWidget">
             <a-divider orientation="left" style="font-size: 12px">基础属性</a-divider>
 
-            <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
+	          <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
               <a-form-item label="X(mm)">
                 <a-input-number
                   :value="editorStore.selectedWidget.x"
@@ -369,19 +383,22 @@
                   "
                 />
               </a-form-item>
-              <a-form-item label="高度(mm)">
-                <a-input-number
-                  :value="editorStore.selectedWidget.height"
-                  :min="10"
-                  :precision="0"
-                  style="width: 100%"
-                  @change="
-                    (v: number) =>
-                      editorStore.updateWidget(editorStore.selectedWidget!.id, { height: v })
-                  "
-                />
-              </a-form-item>
-            </a-form>
+	              <a-form-item label="高度(mm)">
+	                <a-input-number
+	                  :value="editorStore.selectedWidget.height"
+	                  :min="10"
+	                  :precision="0"
+	                  style="width: 100%"
+	                  @change="
+	                    (v: number) =>
+	                      editorStore.updateWidget(editorStore.selectedWidget!.id, { height: v })
+	                  "
+	                />
+	              </a-form-item>
+	              <a-form-item label="控件编码">
+	                <a-input :value="selectedWidgetCode" readonly />
+	              </a-form-item>
+	            </a-form>
 
             <component :is="propertyComponent" :widget="editorStore.selectedWidget" />
           </template>
@@ -424,7 +441,6 @@
               </a-button>
             </div>
 
-            <a-divider orientation="left" style="font-size: 12px">可用数据列</a-divider>
             <a-form-item label="数据源">
               <a-select
                 :value="editorStore.batchPrint.dataSourceFile"
@@ -442,7 +458,17 @@
               </a-select>
             </a-form-item>
 
-            <a-card v-if="selectedDataSource" class="column-list">
+            <a-card
+              v-if="selectedDataSource"
+              class="column-list"
+              :head-style="{
+                fontSize: '14px'
+              }"
+              :body-style="{
+                padding: '12px'
+              }"
+            >
+              <template #title> 可用数据列 </template>
               <div class="column-names">
                 {{ selectedDataSourceColumnNames || '暂无列' }}
               </div>
@@ -509,7 +535,7 @@
               style="margin-bottom: 16px"
             >
               <template #message>
-                将生成 <strong>{{ batchPrintPageCount }}</strong> 张面单
+                将生成 <strong>{{ batchPrintPageCount }}</strong> 张单据
               </template>
             </a-alert>
             <a-alert
@@ -524,8 +550,8 @@
         </div>
       </a-tab-pane>
 
-      <a-tab-pane key="page" tab="画布">
-        <div class="panel-content">
+	      <a-tab-pane key="page" tab="画布">
+	        <div class="panel-content">
           <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
             <a-form-item label="画布大小">
               <a-select :value="editorStore.paperSize?.name" @change="handlePaperSizeChange">
@@ -598,7 +624,7 @@
                 />
               </template>
 
-              <a-divider orientation="left" style="font-size: 12px">装订线设置</a-divider>
+              <!-- <a-divider orientation="left" style="font-size: 12px">装订线设置</a-divider>
 
               <a-form-item label="左装订线 (mm)">
                 <a-input-number
@@ -622,9 +648,9 @@
                   placeholder="右侧装订线宽度"
                   @change="(v: number | null) => handleGutterChange('gutterRight', v)"
                 />
-              </a-form-item>
+              </a-form-item> -->
 
-              <a-divider orientation="left" style="font-size: 12px">页眉页脚</a-divider>
+              <!-- <a-divider orientation="left" style="font-size: 12px">页眉页脚</a-divider>
 
               <a-form-item label="页眉内容">
                 <a-input
@@ -640,7 +666,7 @@
                   placeholder="输入页脚文字"
                   @change="handleFooterChange"
                 />
-              </a-form-item>
+              </a-form-item> -->
 
               <a-divider orientation="left" style="font-size: 12px">水印设置</a-divider>
 
@@ -712,9 +738,27 @@
                 style="margin-top: 16px"
               />
             </template>
-          </a-form>
+	          </a-form>
 
-          <a-divider orientation="left" style="font-size: 12px">模板操作</a-divider>
+	          <a-divider orientation="left" style="font-size: 12px">组件列表</a-divider>
+	          <div class="widget-list">
+	            <div
+	              v-for="w in usedWidgets"
+	              :key="w.id"
+	              class="widget-list-item"
+	              :class="{ active: editorStore.selectedWidgetId === w.id }"
+	              @click="handleSelectWidgetFromList(w.id)"
+	            >
+	              <div class="widget-list-title">
+	                <span>{{ getWidgetTypeLabel(w.type) }}</span>
+	                <span class="widget-list-code">{{ getWidgetCode(w) }}</span>
+	              </div>
+	              <div class="widget-list-meta">X: {{ w.x }}, Y: {{ w.y }}, W: {{ w.width }}, H: {{ w.height }}</div>
+	            </div>
+	            <a-empty v-if="usedWidgets.length === 0" description="暂无组件" />
+	          </div>
+
+          <!-- <a-divider orientation="left" style="font-size: 12px">模板操作</a-divider>
 
           <a-space direction="vertical" style="width: 100%">
             <a-button block @click="exportTemplate">
@@ -738,14 +782,14 @@
               <printer-outlined />
               打印预览
             </a-button>
-          </a-space>
+          </a-space> -->
         </div>
       </a-tab-pane>
     </a-tabs>
   </div>
 </template>
 
-<style scoped>
+	<style scoped>
   .property-panel {
     padding: 12px;
     padding-bottom: 60px;
@@ -768,14 +812,63 @@
 
   .column-names {
     padding: 8px;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.6;
     word-break: break-all;
     white-space: normal;
   }
 
-  .column-preview {
-    font-size: 11px;
-    color: #999;
-  }
-</style>
+	  .column-preview {
+	    font-size: 11px;
+	    color: #999;
+	  }
+
+	  .widget-list {
+	    display: flex;
+	    flex-direction: column;
+	    gap: 8px;
+	  }
+
+	  .widget-list-item {
+	    padding: 8px;
+	    border: 1px solid #f0f0f0;
+	    border-radius: 6px;
+	    background: #fff;
+	    cursor: pointer;
+	    transition:
+	      border-color 0.15s ease,
+	      background-color 0.15s ease;
+	  }
+
+	  .widget-list-item:hover {
+	    border-color: #d9d9d9;
+	    background: #fafafa;
+	  }
+
+	  .widget-list-item.active {
+	    border-color: #1677ff;
+	    background: rgba(22, 119, 255, 0.06);
+	  }
+
+	  .widget-list-title {
+	    display: flex;
+	    align-items: center;
+	    justify-content: space-between;
+	    gap: 8px;
+	    font-size: 12px;
+	    line-height: 1.2;
+	  }
+
+	  .widget-list-code {
+	    color: #8c8c8c;
+	    font-size: 11px;
+	    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+	      'Courier New', monospace;
+	  }
+
+	  .widget-list-meta {
+	    margin-top: 4px;
+	    color: #8c8c8c;
+	    font-size: 11px;
+	  }
+	</style>

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-  import { computed } from 'vue'
-  import { useEditorStore } from '@/stores/editor'
-  import { useDataSourceStore } from '@/stores/datasource'
-  import type { TextWidget, BorderStyle } from '@/types'
+	  import { computed } from 'vue'
+	  import { useEditorStore } from '@/stores/editor'
+	  import { useDataSourceStore } from '@/stores/datasource'
+	  import type { TextWidget, BorderStyle } from '@/types'
+	  import { FONT_FAMILY_OPTIONS, FONT_WEIGHT_OPTIONS } from '@/utils/typography'
 
   const props = defineProps<{
     widget: TextWidget
@@ -11,20 +12,8 @@
   const editorStore = useEditorStore()
   const dataSourceStore = useDataSourceStore()
 
-  const fontFamilies = [
-    'Arial',
-    'Helvetica',
-    'Times New Roman',
-    'SimSun',
-    'SimHei',
-    'Microsoft YaHei',
-    'KaiTi'
-  ]
-
-  const fontWeights = [
-    { label: '正常', value: 'normal' },
-    { label: '粗体', value: 'bold' }
-  ]
+	  const fontFamilyOptions = FONT_FAMILY_OPTIONS
+	  const fontWeightOptions = FONT_WEIGHT_OPTIONS
 
   const textAligns = [
     { label: '左对齐', value: 'left' },
@@ -134,13 +123,17 @@
       </div>
     </a-form-item>
 
-    <a-form-item label="字体">
-      <a-select :value="widget.fontFamily" @change="v => update('fontFamily', v)">
-        <a-select-option v-for="font in fontFamilies" :key="font" :value="font">
-          {{ font }}
-        </a-select-option>
-      </a-select>
-    </a-form-item>
+	    <a-form-item label="字体">
+	      <a-select :value="widget.fontFamily" @change="v => update('fontFamily', v)">
+	        <a-select-option
+	          v-for="option in fontFamilyOptions"
+	          :key="option.value"
+	          :value="option.value"
+	        >
+	          {{ option.label }}
+	        </a-select-option>
+	      </a-select>
+	    </a-form-item>
 
     <a-form-item label="字号">
       <a-input-number
@@ -152,13 +145,17 @@
       />
     </a-form-item>
 
-    <a-form-item label="字重">
-      <a-select :value="widget.fontWeight" @change="v => update('fontWeight', v)">
-        <a-select-option v-for="w in fontWeights" :key="w.value" :value="w.value">
-          {{ w.label }}
-        </a-select-option>
-      </a-select>
-    </a-form-item>
+	    <a-form-item label="字重">
+	      <a-select :value="widget.fontWeight" @change="v => update('fontWeight', v)">
+	        <a-select-option
+	          v-for="option in fontWeightOptions"
+	          :key="option.value"
+	          :value="option.value"
+	        >
+	          {{ option.label }}
+	        </a-select-option>
+	      </a-select>
+	    </a-form-item>
 
     <a-form-item label="颜色">
       <a-input type="color" :value="widget.color" @change="e => handleColorChange('color', e)" />
@@ -191,21 +188,7 @@
       />
     </a-form-item>
 
-    <a-form-item label="自定义样式">
-      <a-textarea
-        :value="widget.customCss || ''"
-        :rows="3"
-        placeholder="示例：line-height: 1.2; text-decoration: underline;"
-        @change="e => handleInputChange('customCss', e)"
-      />
-      <div style="font-size: 12px; color: #999; margin-top: 4px">
-        支持 CSS 声明（kebab-case），部分布局属性会被忽略以避免破坏排版
-      </div>
-    </a-form-item>
-
-    <a-divider orientation="left" style="font-size: 12px">数据绑定</a-divider>
-
-    <a-form-item label="数据源">
+    <a-form-item label="绑定数据">
       <a-select
         :value="widget.dataSource"
         allow-clear
@@ -366,6 +349,19 @@
         :value="widget.borderLeft.color"
         @change="e => handleBorderColorChange('borderLeft', e)"
       />
+    </a-form-item>
+    <a-divider orientation="left" style="font-size: 12px">自定义样式</a-divider>
+
+    <a-form-item label="">
+      <a-textarea
+        :value="widget.customCss || ''"
+        :rows="3"
+        placeholder="示例：line-height: 1.2; text-decoration: underline;"
+        @change="e => handleInputChange('customCss', e)"
+      />
+      <div style="font-size: 12px; color: #999; margin-top: 4px">
+        支持 CSS 声明（kebab-case），部分布局属性会被忽略以避免破坏排版
+      </div>
     </a-form-item>
 
     <!--    <a-divider orientation="left" style="font-size: 12px">高级设置</a-divider>-->

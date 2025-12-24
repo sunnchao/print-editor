@@ -1,9 +1,11 @@
 <script setup lang="ts">
-  import { computed } from 'vue'
-  import { useEditorStore } from '@/stores/editor'
-  import { useDataSourceStore } from '@/stores/datasource'
-  import type { TableWidget, TableCell } from '@/types'
-  import { cloneDeep } from 'lodash-es'
+	  import { computed, ref } from 'vue'
+	  import { useEditorStore } from '@/stores/editor'
+	  import { useDataSourceStore } from '@/stores/datasource'
+	  import type { TableWidget, TableCell } from '@/types'
+	  import { cloneDeep } from 'lodash-es'
+	  import { FONT_FAMILY_OPTIONS, FONT_WEIGHT_OPTIONS } from '@/utils/typography'
+	  import BorderPresetIcon from './BorderPresetIcon.vue'
 
   const props = defineProps<{
     widget: TableWidget
@@ -12,30 +14,34 @@
   const editorStore = useEditorStore()
   const dataSourceStore = useDataSourceStore()
 
-  const borderStyleOptions = [
-    { label: '实线', value: 'solid' },
-    { label: '虚线', value: 'dashed' },
-    { label: '点线', value: 'dotted' }
-  ]
+  const borderStyleOptions = computed(() => {
+    const borderStyle = [
+      { label: '实线', value: 'solid' },
+      { label: '虚线', value: 'dashed' },
+      { label: '点线', value: 'dotted' }
+    ]
+    console.log('borderPresetMode', borderPresetMode.value)
+    if (borderPresetMode.value === 'preset3') {
+      return borderStyle.filter(item => item.value === 'solid')
+    }
+    if (['preset1', 'preset2'].includes(borderPresetMode.value!)) {
+      return borderStyle.filter(item => item.value !== 'solid')
+    }
+    return []
+  })
 
-  const borderPresetOptions = [
+  const borderPresetOptions: Array<{
+    label: string
+    value: 'preset1' | 'preset2' | 'preset3' | 'custom'
+  }> = [
     { label: '外框实线，单元格虚线', value: 'preset1' },
     { label: '外框虚线，单元格虚线', value: 'preset2' },
-    { label: '外框实线，单元格实线', value: 'preset3' },
-    { label: '自定义', value: 'custom' }
+    { label: '外框实线，单元格实线', value: 'preset3' }
+    // { label: '自定义', value: 'custom' }
   ]
 
-  const fontFamilyOptions = [
-    { label: 'Arial', value: 'Arial' },
-    { label: '宋体', value: '宋体' },
-    { label: '微软雅黑', value: '微软雅黑' },
-    { label: 'Helvetica', value: 'Helvetica' }
-  ]
-
-  const fontWeightOptions = [
-    { label: '正常', value: 'normal' },
-    { label: '粗体', value: 'bold' }
-  ]
+	  const fontFamilyOptions = FONT_FAMILY_OPTIONS
+	  const fontWeightOptions = FONT_WEIGHT_OPTIONS
 
   const textAlignOptions = [
     { label: '左对齐', value: 'left' },
@@ -331,6 +337,17 @@
     if (tableStyle === 'solid' && cellStyle === 'solid') return 'preset3'
     return 'custom'
   })
+
+  const borderPresetMode = ref<'preset1' | 'preset2' | 'preset3' | 'custom' | null>(null)
+  const activeBorderPreset = computed(() => borderPresetMode.value ?? borderPresetValue.value)
+
+  function selectBorderPreset(preset: 'preset1' | 'preset2' | 'preset3' | 'custom') {
+    borderPresetMode.value = preset
+    if (preset === 'custom') {
+      return
+    }
+    applyBorderPreset(preset)
+  }
 
   function applyBorderPreset(preset: 'preset1' | 'preset2' | 'preset3') {
     const tableStyle: 'solid' | 'dashed' = preset === 'preset2' ? 'dashed' : 'solid'
@@ -698,7 +715,7 @@
 
 <template>
   <a-divider orientation="left" style="font-size: 12px">表格属性</a-divider>
-  <a-alert type="info" show-icon class="table-mode-alert">
+  <!-- <a-alert type="info" show-icon class="table-mode-alert">
     <template #message>当前模式：{{ modeLabel }}</template>
     <template #description>
       <span v-if="isSimpleMode">简单表格内的单元格可直接绑定字段并展示对应数据。</span>
@@ -707,7 +724,7 @@
       >
       <span v-else>旧版表格兼容手动编辑与列绑定两种方式。</span>
     </template>
-  </a-alert>
+  </a-alert> -->
 
   <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
     <a-form-item label="单元格行数">
@@ -754,21 +771,22 @@
 
     <a-divider orientation="left" style="font-size: 12px">边框设置</a-divider>
     <a-form-item label="边框风格">
-      <a-select
-        :value="borderPresetValue"
-        @change="
-          (v: 'preset1' | 'preset2' | 'preset3' | 'custom') =>
-            v === 'custom' ? null : applyBorderPreset(v)
-        "
-      >
-        <a-select-option
+      <div class="border-preset-grid">
+        <a-button
           v-for="option in borderPresetOptions"
           :key="option.value"
-          :value="option.value"
+          block
+          size="small"
+          class="border-preset-button"
+          :class="{ 'is-active': activeBorderPreset === option.value }"
+          @click="selectBorderPreset(option.value)"
         >
-          {{ option.label }}
-        </a-select-option>
-      </a-select>
+          <span class="border-preset-option">
+            <BorderPresetIcon :preset="option.value" />
+            <span class="border-preset-label">{{ option.label }}</span>
+          </span>
+        </a-button>
+      </div>
       <small class="form-tip">选择预置风格会快速设置外框/单元格的默认边框样式。</small>
     </a-form-item>
 
@@ -843,7 +861,7 @@
     </a-form-item>
 
     <a-form
-      v-if="borderPresetValue === 'custom'"
+      v-if="activeBorderPreset === 'custom'"
       :label-col="{ span: 6 }"
       :wrapper-col="{ span: 18 }"
       size="small"
@@ -991,7 +1009,7 @@
       </a-form-item>
     </a-form>
 
-    <template v-if="borderPresetValue === 'custom'">
+    <template v-if="activeBorderPreset === 'custom'">
       <a-divider orientation="left" style="font-size: 11px; margin: 8px 0"
         >选中单元格边框(高级)
       </a-divider>
@@ -1245,6 +1263,7 @@
     </template>
     <p v-else class="table-cell-empty">请选择一个单元格以编辑内容</p>
   </div>
+  
 
   <a-divider orientation="left" style="font-size: 12px">单元格样式</a-divider>
   <div class="table-cell-panel">
@@ -1427,5 +1446,37 @@
 
   .table-mode-alert {
     margin: 0 8px 12px;
+  }
+
+  .border-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .border-preset-button {
+    justify-content: flex-start;
+    padding: 6px 8px;
+    height: auto;
+    text-align: left;
+    display: flex;
+  }
+
+  .border-preset-button.is-active {
+    border-color: #1677ff;
+    color: #1677ff;
+    background: rgba(22, 119, 255, 0.06);
+  }
+
+  .border-preset-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .border-preset-label {
+    line-height: 1.2;
+    white-space: normal;
   }
 </style>

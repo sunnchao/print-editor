@@ -512,26 +512,65 @@
     }
   })
 
-  const cellStyle = computed(() => (renderRowIndex: number, colIndex: number) => {
-    const actualRowIndex = getActualRowIndex(renderRowIndex)
-    const selected = !isPreview.value && isSelected.value(actualRowIndex, colIndex)
-    const isHeaderRow = actualRowIndex < headerRowCount.value
-    const defaultBorder = cellBorder.value
+	  const cellStyle = computed(() => (renderRowIndex: number, colIndex: number) => {
+	    const actualRowIndex = getActualRowIndex(renderRowIndex)
+	    const selected = !isPreview.value && isSelected.value(actualRowIndex, colIndex)
+	    const isHeaderRow = actualRowIndex < headerRowCount.value
+	    const defaultBorder = cellBorder.value
+	    const defaultTableBorder = tableBorder.value
 
     // 获取单元格数据
     // 在预览模式下，从 renderRows 获取单元格数据（包含循环生成的行）
     // 在编辑模式下，从 props.widget.cells 获取原始数据
-    const cell = isPreview.value
-      ? renderRows.value[renderRowIndex]?.[colIndex]
-      : props.widget.cells[actualRowIndex]?.[colIndex]
+	    const cell = isPreview.value
+	      ? renderRows.value[renderRowIndex]?.[colIndex]
+	      : props.widget.cells[actualRowIndex]?.[colIndex]
 
-    // 获取单元格边框样式
-    // 优先级：单元格自身设置 > 全局统一设置
-    const getCellBorder = (side: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft') => {
-      // 1. 优先使用单元格自身的边框设置
-      const sideBorder = cell?.[side]
-      if (sideBorder) {
-        if (sideBorder.style === 'none') return 'none'
+	    type TableBorderSide =
+	      | 'tableBorderTop'
+	      | 'tableBorderRight'
+	      | 'tableBorderBottom'
+	      | 'tableBorderLeft'
+
+	    const getResolvedTableSide = (side: TableBorderSide) => {
+	      const sideBorder = props.widget[side]
+	      if (sideBorder) return sideBorder
+	      return {
+	        width: defaultTableBorder.width,
+	        color: defaultTableBorder.color,
+	        style: defaultTableBorder.style as 'solid' | 'dashed' | 'dotted' | 'none'
+	      }
+	    }
+
+	    const isTableSideVisible = (side: TableBorderSide) => {
+	      const resolved = getResolvedTableSide(side)
+	      return resolved.style !== 'none' && resolved.width > 0
+	    }
+
+	    const rowSpan = cell?.rowSpan || 1
+	    const colSpan = cell?.colSpan || 1
+	    const lastRenderRowIndex = Math.max(renderRows.value.length - 1, 0)
+	    const lastColIndex = Math.max(props.widget.cols - 1, 0)
+	    const touchesTop = renderRowIndex === 0
+	    const touchesBottom = renderRowIndex + rowSpan - 1 === lastRenderRowIndex
+	    const touchesLeft = colIndex === 0
+	    const touchesRight = colIndex + colSpan - 1 === lastColIndex
+
+	    // 获取单元格边框样式
+	    // 优先级：单元格自身设置 > 全局统一设置
+	    const getCellBorder = (side: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft') => {
+	      // 外框边界：不渲染外边缘单元格边框，避免覆盖表格外框样式
+	      if (side === 'borderTop' && touchesTop && isTableSideVisible('tableBorderTop')) return 'none'
+	      if (side === 'borderRight' && touchesRight && isTableSideVisible('tableBorderRight'))
+	        return 'none'
+	      if (side === 'borderBottom' && touchesBottom && isTableSideVisible('tableBorderBottom'))
+	        return 'none'
+	      if (side === 'borderLeft' && touchesLeft && isTableSideVisible('tableBorderLeft')) return 'none'
+
+	      // 1. 优先使用单元格自身的边框设置
+	      const sideBorder = cell?.[side]
+	      if (sideBorder) {
+	        if (sideBorder.style === 'none') return 'none'
         return `${sideBorder.width}px ${sideBorder.style} ${sideBorder.color}`
       }
 

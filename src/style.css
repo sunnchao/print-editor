@@ -1,3 +1,67 @@
+@font-face {
+  font-family: '仿宋';
+  src: url('./assets/fonts/Fangsong/HanYiFangSongJian-1.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '仿宋';
+  src: url('./assets/fonts/FangsongBold/HanYiCuFangSongJian-1.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '仿宋_GB2312';
+  src: url('./assets/fonts/Fangsong/HanYiFangSongJian-1.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '仿宋_GB2312';
+  src: url('./assets/fonts/FangsongBold/HanYiCuFangSongJian-1.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '宋体';
+  src: url('./assets/fonts/Song/Song.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '宋体';
+  src: url('./assets/fonts/Song/Song.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '等线';
+  src: url('./assets/fonts/Dengxian/Dengxian.ttf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '等线';
+  src: url('./assets/fonts/Dengxian/Dengxian.ttf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 * {
   margin: 0;
   padding: 0;
