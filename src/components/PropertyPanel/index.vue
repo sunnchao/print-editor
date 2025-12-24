@@ -70,6 +70,8 @@
     return [...editorStore.widgets].sort((a, b) => a.zIndex - b.zIndex)
   })
 
+  const isTableWidget = computed(() => editorStore.selectedWidget?.type === 'table')
+
   function handleSelectWidgetFromList(id: string) {
     editorStore.selectWidget(id)
   }
@@ -339,6 +341,8 @@
       <a-tab-pane key="properties" tab="属性">
         <div class="panel-content">
           <template v-if="editorStore.selectedWidget">
+            <component :is="propertyComponent" :widget="editorStore.selectedWidget" />
+
             <a-divider orientation="left" style="font-size: 12px">基础属性</a-divider>
 
             <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
@@ -371,6 +375,7 @@
                   :value="editorStore.selectedWidget.width"
                   :min="10"
                   :precision="0"
+                  :disabled="isTableWidget"
                   style="width: 100%"
                   @change="
                     (v: number) =>
@@ -383,6 +388,7 @@
                   :value="editorStore.selectedWidget.height"
                   :min="10"
                   :precision="0"
+                  :disabled="isTableWidget"
                   style="width: 100%"
                   @change="
                     (v: number) =>
@@ -391,11 +397,9 @@
                 />
               </a-form-item>
               <a-form-item label="控件编码">
-                <a-input :value="selectedWidgetCode" readonly />
+                <a-input :value="selectedWidgetCode" readonly disabled />
               </a-form-item>
             </a-form>
-
-            <component :is="propertyComponent" :widget="editorStore.selectedWidget" />
           </template>
 
           <template v-else>

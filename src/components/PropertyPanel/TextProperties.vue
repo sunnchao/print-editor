@@ -49,7 +49,10 @@
 
   function update(key: keyof TextWidget, value: any) {
     // 防止 undefined 或 null 值破坏组件数据
-    if (value === undefined) return
+    if (value === undefined) {
+      editorStore.updateWidget(props.widget.id, { [key]: value }, true)
+      return
+    }
     editorStore.updateWidget(props.widget.id, { [key]: value })
   }
 
@@ -96,7 +99,7 @@
     <a-form-item label="标题">
       <a-input
         :value="widget.title || ''"
-        placeholder="固定标题（可选）"
+        placeholder="文本固定标题（可选）"
         @change="e => handleInputChange('title', e)"
       />
     </a-form-item>
@@ -109,11 +112,30 @@
     </a-form-item>
 
     <a-form-item label="文本内容">
+      <a-input v-if="widget.dataSource" value="已绑定数据列" :disabled="!!widget.dataSource" />
       <a-input
+        v-else
         :value="widget.content"
         placeholder="文本内容"
+        :disabled="!!widget.dataSource"
         @change="e => handleInputChange('content', e)"
       />
+    </a-form-item>
+    <a-form-item label="绑定数据">
+      <a-select
+        :value="widget.dataSource"
+        allow-clear
+        placeholder="选择数据列"
+        @change="v => update('dataSource', v)"
+      >
+        <a-select-option
+          v-for="col in dataSourceStore.columnOptions"
+          :key="col.value"
+          :value="col.value"
+        >
+          {{ col.label }}
+        </a-select-option>
+      </a-select>
     </a-form-item>
 
     <a-form-item label="显示内容">
@@ -186,23 +208,6 @@
         style="width: 100%"
         @change="v => update('letterSpacing', v ?? 0)"
       />
-    </a-form-item>
-
-    <a-form-item label="绑定数据">
-      <a-select
-        :value="widget.dataSource"
-        allow-clear
-        placeholder="选择数据列"
-        @change="v => update('dataSource', v)"
-      >
-        <a-select-option
-          v-for="col in dataSourceStore.columnOptions"
-          :key="col.value"
-          :value="col.value"
-        >
-          {{ col.label }}
-        </a-select-option>
-      </a-select>
     </a-form-item>
 
     <!-- <a-form-item v-if="widget.dataSource" label="数据行">

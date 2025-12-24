@@ -68,7 +68,9 @@
   box-sizing: border-box;
 }
 
-html, body, #app {
+html,
+body,
+#app {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -100,7 +102,7 @@ html, body, #app {
 }
 
 .property-panel {
-  width: 300px;
+  width: 360px;
   height: 100%;
   border-left: 1px solid #e8e8e8;
   background: #fff;
@@ -202,7 +204,9 @@ html, body, #app {
   position: fixed;
   background: #fff;
   border-radius: 4px;
-  box-shadow: 0 3px 6px -4px rgba(0,0,0,.12), 0 6px 16px 0 rgba(0,0,0,.08);
+  box-shadow:
+    0 3px 6px -4px rgba(0, 0, 0, 0.12),
+    0 6px 16px 0 rgba(0, 0, 0, 0.08);
   padding: 4px 0;
   z-index: 1000;
 }

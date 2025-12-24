@@ -1,17 +1,17 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
 import type {
-  Widget,
+  BatchPrintConfig,
   PaperSize,
   SnapLine,
+  TableCell,
   TableSelection,
   TableWidget,
-  TableCell,
-  BatchPrintConfig
+  Widget
 } from '@/types'
-import { cloneDeep } from 'lodash-es'
 import { normalizeBatchPrintConfig } from '@/utils/batchPrint'
 import { getTableInnerSizeMm, getTableOuterBorderMm } from '@/utils/tableSizing'
+import { cloneDeep } from 'lodash-es'
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
 
 interface MasterCell {
   row: number
@@ -242,10 +242,16 @@ export const useEditorStore = defineStore('editor', () => {
     saveHistory()
   }
 
-  function updateWidget(id: string, updates: Partial<Widget>) {
+  function updateWidget(id: string, updates: Partial<Widget>, isDelete = false) {
     const index = widgets.value.findIndex(w => w.id === id)
     if (index !== -1) {
-      widgets.value[index] = { ...widgets.value[index], ...updates } as Widget
+      if (isDelete) {
+        Object.keys(updates).forEach(key => {
+          delete (widgets.value[index] as any)[key]
+        })
+      } else {
+        widgets.value[index] = { ...widgets.value[index], ...updates } as Widget
+      }
       saveHistory()
     }
   }
