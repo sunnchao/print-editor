@@ -1,9 +1,9 @@
 <script setup lang="ts">
-	  import { computed } from 'vue'
-	  import { useEditorStore } from '@/stores/editor'
-	  import { useDataSourceStore } from '@/stores/datasource'
-	  import type { TextWidget, BorderStyle } from '@/types'
-	  import { FONT_FAMILY_OPTIONS, FONT_WEIGHT_OPTIONS } from '@/utils/typography'
+  import { useDataSourceStore } from '@/stores/datasource'
+  import { useEditorStore } from '@/stores/editor'
+  import type { BorderStyle, TextWidget } from '@/types'
+  import { FONT_FAMILY_OPTIONS, FONT_WEIGHT_OPTIONS } from '@/utils/typography'
+  import { computed } from 'vue'
 
   const props = defineProps<{
     widget: TextWidget
@@ -12,8 +12,8 @@
   const editorStore = useEditorStore()
   const dataSourceStore = useDataSourceStore()
 
-	  const fontFamilyOptions = FONT_FAMILY_OPTIONS
-	  const fontWeightOptions = FONT_WEIGHT_OPTIONS
+  const fontFamilyOptions = FONT_FAMILY_OPTIONS
+  const fontWeightOptions = FONT_WEIGHT_OPTIONS
 
   const textAligns = [
     { label: '左对齐', value: 'left' },
@@ -108,10 +108,10 @@
       </div>
     </a-form-item>
 
-    <a-form-item label="数据内容">
+    <a-form-item label="文本内容">
       <a-input
         :value="widget.content"
-        placeholder="数据内容"
+        placeholder="文本内容"
         @change="e => handleInputChange('content', e)"
       />
     </a-form-item>
@@ -119,21 +119,21 @@
     <a-form-item label="显示内容">
       <a-switch :checked="widget.showContent !== false" @change="v => update('showContent', v)" />
       <div style="font-size: 12px; color: #999; margin-top: 4px">
-        关闭后，数据内容在编辑和预览模式下均不显示
+        关闭后，文本内容在编辑和预览模式下均不显示
       </div>
     </a-form-item>
 
-	    <a-form-item label="字体">
-	      <a-select :value="widget.fontFamily" @change="v => update('fontFamily', v)">
-	        <a-select-option
-	          v-for="option in fontFamilyOptions"
-	          :key="option.value"
-	          :value="option.value"
-	        >
-	          {{ option.label }}
-	        </a-select-option>
-	      </a-select>
-	    </a-form-item>
+    <a-form-item label="字体">
+      <a-select :value="widget.fontFamily" @change="v => update('fontFamily', v)">
+        <a-select-option
+          v-for="option in fontFamilyOptions"
+          :key="option.value"
+          :value="option.value"
+        >
+          {{ option.label }}
+        </a-select-option>
+      </a-select>
+    </a-form-item>
 
     <a-form-item label="字号">
       <a-input-number
@@ -145,17 +145,17 @@
       />
     </a-form-item>
 
-	    <a-form-item label="字重">
-	      <a-select :value="widget.fontWeight" @change="v => update('fontWeight', v)">
-	        <a-select-option
-	          v-for="option in fontWeightOptions"
-	          :key="option.value"
-	          :value="option.value"
-	        >
-	          {{ option.label }}
-	        </a-select-option>
-	      </a-select>
-	    </a-form-item>
+    <a-form-item label="字重">
+      <a-select :value="widget.fontWeight" @change="v => update('fontWeight', v)">
+        <a-select-option
+          v-for="option in fontWeightOptions"
+          :key="option.value"
+          :value="option.value"
+        >
+          {{ option.label }}
+        </a-select-option>
+      </a-select>
+    </a-form-item>
 
     <a-form-item label="颜色">
       <a-input type="color" :value="widget.color" @change="e => handleColorChange('color', e)" />

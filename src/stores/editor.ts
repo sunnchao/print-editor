@@ -11,6 +11,7 @@ import type {
 } from '@/types'
 import { cloneDeep } from 'lodash-es'
 import { normalizeBatchPrintConfig } from '@/utils/batchPrint'
+import { getTableInnerSizeMm, getTableOuterBorderMm } from '@/utils/tableSizing'
 
 interface MasterCell {
   row: number
@@ -153,6 +154,41 @@ function getColumnFractions(table: TableWidget): number[] {
 
 function getRowFractions(table: TableWidget): number[] {
   return normalizeFractionArray(table.rowHeights, table.rows)
+}
+
+function normalizeImportedTableWidget(widget: TableWidget): TableWidget {
+  const rows = Math.max(0, widget.rows ?? 0)
+  const cols = Math.max(0, widget.cols ?? 0)
+  const border = getTableOuterBorderMm(widget)
+  const DEFAULT_ROW_HEIGHT_MM = 8
+  const DEFAULT_COL_WIDTH_MM = 25
+
+  const next: TableWidget = {
+    ...widget,
+    rows,
+    cols,
+    rowHeights: normalizeFractionArray(widget.rowHeights, rows),
+    columnWidths: normalizeFractionArray(widget.columnWidths, cols)
+  }
+
+  if (!Number.isFinite(next.height) || next.height <= 0) {
+    next.height = rows > 0 ? rows * DEFAULT_ROW_HEIGHT_MM + border.y : 20
+  }
+  if (!Number.isFinite(next.width) || next.width <= 0) {
+    next.width = cols > 0 ? cols * DEFAULT_COL_WIDTH_MM + border.x : 20
+  }
+
+  return next
+}
+
+function normalizeImportedWidgets(input: unknown): Widget[] {
+  if (!Array.isArray(input)) return []
+  return input.map((w: any) => {
+    if (w?.type === 'table') {
+      return normalizeImportedTableWidget(w as TableWidget)
+    }
+    return w as Widget
+  })
 }
 
 export const useEditorStore = defineStore('editor', () => {
@@ -336,7 +372,7 @@ export const useEditorStore = defineStore('editor', () => {
     try {
       const data = JSON.parse(json)
       if (data.paperSize) paperSize.value = data.paperSize
-      if (data.widgets) widgets.value = data.widgets
+      if (data.widgets) widgets.value = normalizeImportedWidgets(data.widgets)
       if (data.globalForcePageBreak !== undefined)
         globalForcePageBreak.value = data.globalForcePageBreak
       saveHistory()
@@ -346,7 +382,7 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function loadWidgets(newWidgets: Widget[]) {
-    widgets.value = cloneDeep(newWidgets)
+    widgets.value = cloneDeep(normalizeImportedWidgets(newWidgets))
     selectedWidgetId.value = null
     history.value = []
     historyIndex.value = -1
@@ -436,7 +472,8 @@ export const useEditorStore = defineStore('editor', () => {
 
     const selection = tableSelection.value
     const previousSelection = selection ? { ...selection } : null
-    const rowHeight = table.rows > 0 ? table.height / table.rows : 0
+    const innerSize = getTableInnerSizeMm(table)
+    const rowHeight = table.rows > 0 ? innerSize.height / table.rows : 0
     const referenceRow = selection
       ? position === 'before'
         ? selection.startRow
@@ -481,7 +518,8 @@ export const useEditorStore = defineStore('editor', () => {
 
     const selection = tableSelection.value
     const previousSelection = selection ? { ...selection } : null
-    const colWidth = table.cols > 0 ? table.width / table.cols : 0
+    const innerSize = getTableInnerSizeMm(table)
+    const colWidth = table.cols > 0 ? innerSize.width / table.cols : 0
     const referenceCol = selection
       ? position === 'before'
         ? selection.startCol
@@ -542,7 +580,8 @@ export const useEditorStore = defineStore('editor', () => {
     const removeCount = deleteEnd - deleteStart + 1
     if (table.rows - removeCount < 1) return
 
-    const rowHeight = table.rows > 0 ? table.height / table.rows : 0
+    const innerSize = getTableInnerSizeMm(table)
+    const rowHeight = table.rows > 0 ? innerSize.height / table.rows : 0
 
     const masters = extractMasterCells(table)
       .map(cell => {
@@ -588,7 +627,8 @@ export const useEditorStore = defineStore('editor', () => {
     const removeCount = deleteEnd - deleteStart + 1
     if (table.cols - removeCount < 1) return
 
-    const colWidth = table.cols > 0 ? table.width / table.cols : 0
+    const innerSize = getTableInnerSizeMm(table)
+    const colWidth = table.cols > 0 ? innerSize.width / table.cols : 0
 
     const bindings = { ...(table.columnBindings || {}) }
     const updatedBindings: Record<number, string> = {}

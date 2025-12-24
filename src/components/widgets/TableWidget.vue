@@ -5,6 +5,13 @@
   import type { TableWidget } from '@/types'
   import { MM_TO_PX } from '@/types'
   import { cloneDeep } from 'lodash-es'
+  import {
+    fractionsFromAbsoluteMm,
+    getTableColumnWidthsMm,
+    getTableRowHeightsMm,
+    outerHeightFromRowHeightsMm,
+    outerWidthFromColumnWidthsMm
+  } from '@/utils/tableSizing'
 
   const props = withDefaults(
     defineProps<{
@@ -132,14 +139,15 @@
     () => props.widget.showHeader === false && headerRowCount.value > 0
   )
 
-  const columnResizeState = ref<{ index: number; startX: number; initialWidths: number[] } | null>(
-    null
-  )
+  const columnResizeState = ref<{
+    index: number
+    startX: number
+    initialWidthsMm: number[]
+  } | null>(null)
   const rowResizeState = ref<{
-    topIndex: number
-    bottomIndex: number
+    rowIndex: number
     startY: number
-    initialHeights: number[]
+    initialHeightsMm: number[]
   } | null>(null)
   const defaultRowHeight = computed(() => (props.widget.rows > 0 ? 1 / props.widget.rows : 0))
 
@@ -627,23 +635,18 @@
     })
   }
 
-  function normalizeFractions(values: number[]) {
-    const total = values.reduce((sum, val) => sum + val, 0)
-    if (!total) {
-      const length = values.length
-      return length > 0 ? Array(length).fill(1 / length) : values
-    }
-    return values.map(val => val / total)
+  function updateColumnWidthsMm(widthsMm: number[]) {
+    editorStore.updateWidget(props.widget.id, {
+      width: Math.max(outerWidthFromColumnWidthsMm(props.widget, widthsMm), 20),
+      columnWidths: fractionsFromAbsoluteMm(widthsMm)
+    })
   }
 
-  function updateColumnWidths(widths: number[]) {
-    const normalized = normalizeFractions(widths)
-    editorStore.updateWidget(props.widget.id, { columnWidths: normalized })
-  }
-
-  function updateRowHeights(heights: number[]) {
-    const normalized = normalizeFractions(heights)
-    editorStore.updateWidget(props.widget.id, { rowHeights: normalized })
+  function updateRowHeightsMm(heightsMm: number[]) {
+    editorStore.updateWidget(props.widget.id, {
+      height: Math.max(outerHeightFromRowHeightsMm(props.widget, heightsMm), 20),
+      rowHeights: fractionsFromAbsoluteMm(heightsMm)
+    })
   }
 
   function startColumnResize(index: number, event: MouseEvent) {
@@ -652,7 +655,7 @@
     columnResizeState.value = {
       index,
       startX: event.clientX,
-      initialWidths: [...normalizedColumnWidths.value]
+      initialWidthsMm: getTableColumnWidthsMm(props.widget)
     }
     window.addEventListener('mousemove', onColumnResizeThrottled)
     window.addEventListener('mouseup', stopColumnResize)
@@ -671,22 +674,14 @@
   function onColumnResize(clientX: number) {
     const state = columnResizeState.value
     if (!state) return
-    const tableWidthPx = props.widget.width * MM_TO_PX
-    if (tableWidthPx <= 0) return
     const scale = editorStore.scale
-    let deltaRatio = (clientX - state.startX) / scale / tableWidthPx
-    const widths = [...state.initialWidths]
-    const leftIndex = state.index
-    const rightIndex = state.index + 1
-    if (rightIndex >= widths.length) return
-    const minRatio = tableWidthPx > 0 ? MIN_COLUMN_PX / tableWidthPx : 0
-    const maxIncrease = widths[rightIndex] - minRatio
-    const maxDecrease = widths[leftIndex] - minRatio
-    deltaRatio = Math.min(deltaRatio, maxIncrease)
-    deltaRatio = Math.max(deltaRatio, -maxDecrease)
-    widths[leftIndex] = widths[leftIndex] + deltaRatio
-    widths[rightIndex] = widths[rightIndex] - deltaRatio
-    updateColumnWidths(widths)
+    const deltaMm = (clientX - state.startX) / scale / MM_TO_PX
+    const widthsMm = [...state.initialWidthsMm]
+    const index = state.index
+    if (index < 0 || index >= widthsMm.length) return
+    const minWidthMm = MIN_COLUMN_PX / MM_TO_PX
+    widthsMm[index] = Math.max(minWidthMm, state.initialWidthsMm[index] + deltaMm)
+    updateColumnWidthsMm(widthsMm)
   }
 
   function stopColumnResize() {
@@ -704,10 +699,9 @@
     if (isPreview.value) return
     ensureWidgetSelected()
     rowResizeState.value = {
-      topIndex: boundary.topIndex,
-      bottomIndex: boundary.bottomIndex,
+      rowIndex: boundary.topIndex,
       startY: event.clientY,
-      initialHeights: [...normalizedRowHeights.value]
+      initialHeightsMm: getTableRowHeightsMm(props.widget)
     }
     window.addEventListener('mousemove', onRowResizeThrottled)
     window.addEventListener('mouseup', stopRowResize)
@@ -726,22 +720,14 @@
   function onRowResize(clientY: number) {
     const state = rowResizeState.value
     if (!state) return
-    const tableHeightPx = props.widget.height * MM_TO_PX
-    if (tableHeightPx <= 0) return
     const scale = editorStore.scale
-    let deltaRatio = (clientY - state.startY) / scale / tableHeightPx
-    const heights = [...state.initialHeights]
-    const topIndex = state.topIndex
-    const bottomIndex = state.bottomIndex
-    if (bottomIndex >= heights.length || topIndex < 0) return
-    const minRatio = tableHeightPx > 0 ? MIN_ROW_PX / tableHeightPx : 0
-    const maxIncrease = heights[bottomIndex] - minRatio
-    const maxDecrease = heights[topIndex] - minRatio
-    deltaRatio = Math.min(deltaRatio, maxIncrease)
-    deltaRatio = Math.max(deltaRatio, -maxDecrease)
-    heights[topIndex] = heights[topIndex] + deltaRatio
-    heights[bottomIndex] = heights[bottomIndex] - deltaRatio
-    updateRowHeights(heights)
+    const deltaMm = (clientY - state.startY) / scale / MM_TO_PX
+    const heightsMm = [...state.initialHeightsMm]
+    const rowIndex = state.rowIndex
+    if (rowIndex < 0 || rowIndex >= heightsMm.length) return
+    const minHeightMm = MIN_ROW_PX / MM_TO_PX
+    heightsMm[rowIndex] = Math.max(minHeightMm, state.initialHeightsMm[rowIndex] + deltaMm)
+    updateRowHeightsMm(heightsMm)
   }
 
   function stopRowResize() {

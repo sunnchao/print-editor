@@ -272,6 +272,7 @@
 
   function onResizeStart(e: MouseEvent, _handle: string) {
     e.stopPropagation()
+    if (props.widget.type === 'table') return
     isResizing.value = true
     resizeStart.value = {
       x: e.clientX,
@@ -353,10 +354,12 @@
     <component :is="widgetComponent" :widget="widget" />
 
     <template v-if="isSelected">
-      <div class="resize-handle se" @mousedown="onResizeStart($event, 'se')"></div>
-      <div class="resize-handle sw" @mousedown="onResizeStart($event, 'sw')"></div>
-      <div class="resize-handle ne" @mousedown="onResizeStart($event, 'ne')"></div>
-      <div class="resize-handle nw" @mousedown="onResizeStart($event, 'nw')"></div>
+      <template v-if="widget.type !== 'table'">
+        <div class="resize-handle se" @mousedown="onResizeStart($event, 'se')"></div>
+        <div class="resize-handle sw" @mousedown="onResizeStart($event, 'sw')"></div>
+        <div class="resize-handle ne" @mousedown="onResizeStart($event, 'ne')"></div>
+        <div class="resize-handle nw" @mousedown="onResizeStart($event, 'nw')"></div>
+      </template>
     </template>
   </div>
 </template>

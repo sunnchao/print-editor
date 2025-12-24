@@ -29,8 +29,8 @@ export interface TextWidget extends WidgetBase {
   type: 'text'
   title?: string // 固定标题文字
   showTitle?: boolean // 是否显示标题，默认为 true
-  content: string // 数据内容
-  showContent?: boolean // 是否显示数据内容，默认为 true
+  content: string // 文本内容
+  showContent?: boolean // 是否显示文本内容，默认为 true
   fontSize: number
   fontFamily: string
   fontWeight: string

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-  import { computed, ref, watch, inject } from 'vue'
-  import { useEditorStore } from '@/stores/editor'
   import { useDataSourceStore } from '@/stores/datasource'
+  import { useEditorStore } from '@/stores/editor'
   import type { TextWidget } from '@/types'
+  import { computed, inject, ref, watch } from 'vue'
 
   const props = defineProps<{
     widget: TextWidget
@@ -28,7 +28,7 @@
     }
   )
 
-  // 显示的数据内容（不包括标题）
+  // 显示的文本内容（不包括标题）
   const displayData = computed(() => {
     if (props.widget.dataSource) {
       // 使用传入的 dataRowIndex，如果没有则使用 widget 上的 dataRowIndex，都没有则默认为 0
@@ -48,7 +48,7 @@
     return props.widget.title && props.widget.showTitle !== false
   })
 
-  // 是否显示数据内容（showContent 默认为 true）
+  // 是否显示文本内容（showContent 默认为 true）
   const shouldShowContent = computed(() => {
     return props.widget.showContent !== false
   })

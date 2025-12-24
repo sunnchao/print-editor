@@ -1,11 +1,18 @@
 <script setup lang="ts">
-	  import { computed, ref } from 'vue'
-	  import { useEditorStore } from '@/stores/editor'
-	  import { useDataSourceStore } from '@/stores/datasource'
-	  import type { TableWidget, TableCell } from '@/types'
-	  import { cloneDeep } from 'lodash-es'
-	  import { FONT_FAMILY_OPTIONS, FONT_WEIGHT_OPTIONS } from '@/utils/typography'
-	  import BorderPresetIcon from './BorderPresetIcon.vue'
+  import { useDataSourceStore } from '@/stores/datasource'
+  import { useEditorStore } from '@/stores/editor'
+  import type { TableCell, TableWidget } from '@/types'
+  import {
+    fractionsFromAbsoluteMm,
+    getTableColumnWidthsMm,
+    getTableRowHeightsMm,
+    outerHeightFromRowHeightsMm,
+    outerWidthFromColumnWidthsMm
+  } from '@/utils/tableSizing'
+  import { FONT_FAMILY_OPTIONS, FONT_WEIGHT_OPTIONS } from '@/utils/typography'
+  import { cloneDeep } from 'lodash-es'
+  import { computed, ref } from 'vue'
+  import BorderPresetIcon from './BorderPresetIcon.vue'
 
   const props = defineProps<{
     widget: TableWidget
@@ -40,8 +47,8 @@
     // { label: '自定义', value: 'custom' }
   ]
 
-	  const fontFamilyOptions = FONT_FAMILY_OPTIONS
-	  const fontWeightOptions = FONT_WEIGHT_OPTIONS
+  const fontFamilyOptions = FONT_FAMILY_OPTIONS
+  const fontWeightOptions = FONT_WEIGHT_OPTIONS
 
   const textAlignOptions = [
     { label: '左对齐', value: 'left' },
@@ -657,58 +664,42 @@
   const selectedRowHeight = computed(() => {
     if (!tableSelection.value) return null
     const rowIndex = tableSelection.value.startRow
-    const rowHeights = props.widget.rowHeights || []
-    const fraction = rowHeights[rowIndex] || 1 / props.widget.rows
-    return Math.round(props.widget.height * fraction)
+    const heights = getTableRowHeightsMm(props.widget)
+    return Math.round(heights[rowIndex] ?? 0)
   })
 
   const selectedColWidth = computed(() => {
     if (!tableSelection.value) return null
     const colIndex = tableSelection.value.startCol
-    const columnWidths = props.widget.columnWidths || []
-    const fraction = columnWidths[colIndex] || 1 / props.widget.cols
-    return Math.round(props.widget.width * fraction)
+    const widths = getTableColumnWidthsMm(props.widget)
+    return Math.round(widths[colIndex] ?? 0)
   })
 
-  function updateRowHeight(heightPx: number) {
+  function updateRowHeight(heightMm: number | null) {
+    if (heightMm === null) return
     if (!tableSelection.value) return
     const rowIndex = tableSelection.value.startRow
-    const currentRowHeights = normalizeFractions(props.widget.rowHeights || [], props.widget.rows)
-
-    // 计算新的比例
-    const newFraction = heightPx / props.widget.height
-    const oldFraction = currentRowHeights[rowIndex]
-    const diff = newFraction - oldFraction
-
-    // 按比例分配差值到其他行
-    const newRowHeights = currentRowHeights.map((frac, idx) => {
-      if (idx === rowIndex) return newFraction
-      return frac - diff / (props.widget.rows - 1)
-    })
+    const heights = getTableRowHeightsMm(props.widget)
+    if (rowIndex < 0 || rowIndex >= heights.length) return
+    heights[rowIndex] = Math.max(0, heightMm)
 
     editorStore.updateWidget(props.widget.id, {
-      rowHeights: normalizeFractions(newRowHeights, props.widget.rows)
+      height: Math.max(outerHeightFromRowHeightsMm(props.widget, heights), 20),
+      rowHeights: fractionsFromAbsoluteMm(heights)
     })
   }
 
-  function updateColWidth(widthPx: number) {
+  function updateColWidth(widthMm: number | null) {
+    if (widthMm === null) return
     if (!tableSelection.value) return
     const colIndex = tableSelection.value.startCol
-    const currentColWidths = normalizeFractions(props.widget.columnWidths || [], props.widget.cols)
-
-    // 计算新的比例
-    const newFraction = widthPx / props.widget.width
-    const oldFraction = currentColWidths[colIndex]
-    const diff = newFraction - oldFraction
-
-    // 按比例分配差值到其他列
-    const newColWidths = currentColWidths.map((frac, idx) => {
-      if (idx === colIndex) return newFraction
-      return frac - diff / (props.widget.cols - 1)
-    })
+    const widths = getTableColumnWidthsMm(props.widget)
+    if (colIndex < 0 || colIndex >= widths.length) return
+    widths[colIndex] = Math.max(0, widthMm)
 
     editorStore.updateWidget(props.widget.id, {
-      columnWidths: normalizeFractions(newColWidths, props.widget.cols)
+      width: Math.max(outerWidthFromColumnWidthsMm(props.widget, widths), 20),
+      columnWidths: fractionsFromAbsoluteMm(widths)
     })
   }
 </script>
@@ -1184,7 +1175,7 @@
     </a-space>
   </div>
 
-  <a-divider orientation="left" style="font-size: 12px">列数据绑定</a-divider>
+  <a-divider v-if="!isSimpleMode" orientation="left" style="font-size: 12px">列数据绑定</a-divider>
   <div v-if="!isSimpleMode" class="table-cell-panel">
     <template v-if="isHeaderSelection && selectedColumnIndex !== null">
       <a-form :label-col="{ span: 8 }" :wrapper-col="{ span: 16 }" size="small">
@@ -1215,9 +1206,7 @@
     </template>
     <p v-else class="table-cell-empty">请选择表头单元格以绑定列数据源</p>
   </div>
-  <div v-else class="table-cell-panel">
-    <p class="table-cell-empty">简单表格请直接选择单元格并绑定数据列</p>
-  </div>
+  <div v-else class="table-cell-panel"></div>
   <a-divider orientation="left" style="font-size: 12px">单元格内容</a-divider>
   <div class="table-cell-panel">
     <template v-if="activeCell">
@@ -1263,7 +1252,6 @@
     </template>
     <p v-else class="table-cell-empty">请选择一个单元格以编辑内容</p>
   </div>
-  
 
   <a-divider orientation="left" style="font-size: 12px">单元格样式</a-divider>
   <div class="table-cell-panel">
